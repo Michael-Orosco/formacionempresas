@@ -1,0 +1,108 @@
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Colegio {
+  id             String         @id @default(uuid())
+  nombre         String
+  direccion      String
+  licenciaActiva Boolean        @default(true)
+  fechaCreacion  DateTime       @default(now())
+  usuarios       Usuario[]
+  aulas          GradoSeccion[]
+}
+
+model Usuario {
+  id                String            @id @default(uuid())
+  email             String            @unique
+  passwordHash      String
+  rol               String            // "ADMIN", "DOCENTE", "ESTUDIANTE"
+  nombre            String
+  telefono          String            // Para recordatorios de WhatsApp
+  colegioId         String
+  colegio           Colegio           @relation(fields: [colegioId], references: [id], onDelete: Cascade)
+  matriculas        Matricula[]       // Si es ESTUDIANTE
+  cursosDocente     Curso[]           // Si es DOCENTE
+  anunciosDocente   Anuncio[]         // Si es DOCENTE
+  logNotificaciones LogNotificacion[] // Registros de envíos de WhatsApp
+  fechaCreacion     DateTime          @default(now())
+}
+
+model GradoSeccion {
+  id        String    @id @default(uuid())
+  grado     String
+  seccion   String
+  colegioId String
+  colegio   Colegio   @relation(fields: [colegioId], references: [id], onDelete: Cascade)
+  cursos    Curso[]
+}
+
+model Curso {
+  id             String       @id @default(uuid())
+  nombre         String
+  descripcion    String?
+  gradoSeccionId String
+  gradoSeccion   GradoSeccion @relation(fields: [gradoSeccionId], references: [id], onDelete: Cascade)
+  docenteId      String
+  docente        Usuario      @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+  matriculas     Matricula[]
+  tareas         Tarea[]
+  silabos        Silabo[]
+  anuncios       Anuncio[]
+}
+
+model Matricula {
+  id           String   @id @default(uuid())
+  estudianteId String
+  estudiante   Usuario  @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
+  cursoId      String
+  curso        Curso    @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  fechaCreacion DateTime @default(now())
+
+  @@unique([estudianteId, cursoId])
+}
+
+model Tarea {
+  id                String            @id @default(uuid())
+  titulo            String
+  descripcion       String
+  fechaEntrega      DateTime
+  cursoId           String
+  curso             Curso             @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  estado            String            // "PENDIENTE", "ENTREGADA"
+  logNotificaciones LogNotificacion[]
+  fechaCreacion     DateTime          @default(now())
+}
+
+model Silabo {
+  id      String @id @default(uuid())
+  semana  Int
+  tema    String
+  cursoId String
+  curso   Curso  @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+}
+
+model Anuncio {
+  id               String   @id @default(uuid())
+  mensaje          String
+  fechaPublicacion DateTime @default(now())
+  cursoId          String
+  curso            Curso    @relation(fields: [cursoId], references: [id], onDelete: Cascade)
+  docenteId        String
+  docente          Usuario  @relation(fields: [docenteId], references: [id], onDelete: Cascade)
+}
+
+model LogNotificacion {
+  id           String   @id @default(uuid())
+  tareaId      String?
+  tarea        Tarea?   @relation(fields: [tareaId], references: [id], onDelete: Cascade)
+  estudianteId String
+  estudiante   Usuario  @relation(fields: [estudianteId], references: [id], onDelete: Cascade)
+  fechaEnvio   DateTime @default(now())
+  estado       String   // "EXITO", "FALLO"
+}
