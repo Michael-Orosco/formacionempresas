@@ -37,22 +37,11 @@ export default function RootLayout({
       <body className="font-sans min-h-full bg-slate-50 text-slate-900 flex flex-col antialiased">
         {children}
         
-        {/* Registro del Service Worker */}
+        {/* Registro del Service Worker Desactivado para Estabilidad Local */}
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/service-worker.js').then(
-                    function(reg) {
-                      console.log('PWA ServiceWorker registrado con éxito: ', reg.scope);
-                    },
-                    function(err) {
-                      console.log('Error al registrar PWA ServiceWorker: ', err);
-                    }
-                  );
-                });
-              }
+              console.log('Service Worker registration skipped for stability.');
             `,
           }}
         />

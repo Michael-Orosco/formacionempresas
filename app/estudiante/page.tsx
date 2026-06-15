@@ -16,6 +16,7 @@ import {
   Loader2,
   Bell
 } from "lucide-react";
+import { Controller } from "@/lib/mvc/controller";
 
 interface Curso {
   id: string;
@@ -56,25 +57,24 @@ export default function EstudianteDashboard() {
   const [syllabus, setSyllabus] = useState<Silabo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [userName, setUserName] = useState("");
+  const [userName, setUserName] = useState("Estudiante");
 
   useEffect(() => {
-    async function fetchDashboardData() {
-      try {
-        const res = await fetch("/api/estudiante/dashboard");
-        if (res.status === 401) {
-          router.push("/");
-          return;
-        }
-        
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "Error al cargar dashboard");
+    // Protección de ruta a nivel de cliente
+    const currentUser = Controller.getCurrentUser();
+    if (!currentUser || currentUser.rol !== "ESTUDIANTE") {
+      console.log("[Estudiante View] Usuario no autorizado. Redirigiendo a Login.");
+      router.push("/");
+      return;
+    }
+    setUserName(currentUser.nombre);
 
+    function fetchDashboardData() {
+      try {
+        const data = Controller.getEstudianteDashboardData(currentUser.id);
         setCourses(data.matriculas || []);
         setTasks(data.tareas || []);
         setSyllabus(data.silabos || []);
-
-        setUserName("Pedro Alcántara"); // En producción se obtiene del JWT
       } catch (err: any) {
         setError(err.message || "Error de red");
       } finally {
@@ -85,9 +85,9 @@ export default function EstudianteDashboard() {
     fetchDashboardData();
   }, [router]);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      Controller.logout();
       router.push("/");
     } catch (err) {
       console.error("Error al cerrar sesión", err);

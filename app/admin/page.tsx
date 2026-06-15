@@ -18,6 +18,7 @@ import {
   Award,
   ShieldAlert
 } from "lucide-react";
+import { Controller } from "@/lib/mvc/controller";
 
 interface UserRecord {
   id: string;
@@ -25,7 +26,7 @@ interface UserRecord {
   nombre: string;
   telefono: string;
   rol: string;
-  fechaCreacion: string;
+  fechaCreacion?: string;
 }
 
 interface Aula {
@@ -63,25 +64,13 @@ export default function AdminDashboard() {
   const [regLoading, setRegLoading] = useState(false);
   const [regSuccess, setRegSuccess] = useState("");
 
-  const fetchData = async () => {
+  const fetchData = () => {
     try {
-      const [resReport, resUsers] = await Promise.all([
-        fetch("/api/admin/reportes"),
-        fetch("/api/admin/usuarios")
-      ]);
-
-      if (resReport.status === 401 || resUsers.status === 401) {
-        router.push("/");
-        return;
-      }
-
-      const reportData = await resReport.json();
-      const usersData = await resUsers.json();
-
-      if (reportData.success) setKpis(reportData.kpis);
-      if (usersData.success) {
-        setUsers(usersData.usuarios || []);
-        setAulas(usersData.aulas || []);
+      const data = Controller.getAdminDashboardData();
+      if (data.success) {
+        setKpis(data.kpis);
+        setUsers(data.usuarios || []);
+        setAulas(data.aulas || []);
       }
     } catch (err) {
       console.error("Error al cargar datos del administrador", err);
@@ -91,12 +80,19 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
+    // Protección de ruta a nivel de cliente
+    const currentUser = Controller.getCurrentUser();
+    if (!currentUser || currentUser.rol !== "ADMIN") {
+      console.log("[Admin View] Usuario no autorizado o sesión expirada. Redirigiendo a Login.");
+      router.push("/");
+      return;
+    }
     fetchData();
   }, [router]);
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      Controller.logout();
       router.push("/");
     } catch (err) {
       console.error("Error al cerrar sesión", err);
@@ -109,30 +105,23 @@ export default function AdminDashboard() {
     setRegSuccess("");
 
     try {
-      const res = await fetch("/api/admin/usuarios", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: regEmail,
-          password: regPassword,
-          nombre: regNombre,
-          telefono: regTelefono,
-          rol: regRol,
-          gradoSeccionId: regRol === "ESTUDIANTE" ? regAulaId : undefined,
-        }),
+      const newUser = Controller.createUser({
+        email: regEmail,
+        passwordHash: regPassword,
+        nombre: regNombre,
+        telefono: regTelefono,
+        rol: regRol,
+        gradoSeccionId: regRol === "ESTUDIANTE" ? regAulaId : undefined,
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Fallo al guardar usuario");
-
-      setRegSuccess(`¡Usuario ${data.usuario.nombre} creado con éxito!`);
+      setRegSuccess(`¡Usuario ${newUser.nombre} creado con éxito!`);
       setRegEmail("");
       setRegPassword("");
       setRegNombre("");
       setRegTelefono("");
       setRegAulaId("");
       
-      await fetchData();
+      fetchData();
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -140,16 +129,12 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleDeleteUser = async (id: string) => {
+  const handleDeleteUser = (id: string) => {
     if (!confirm("¿Estás seguro de que deseas eliminar este usuario del sistema?")) return;
 
     try {
-      const res = await fetch(`/api/admin/usuarios/${id}`, { method: "DELETE" });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Fallo al eliminar usuario");
-
-      await fetchData();
+      Controller.deleteUser(id);
+      fetchData();
     } catch (err: any) {
       alert(err.message);
     }

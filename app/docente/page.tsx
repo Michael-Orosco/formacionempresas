@@ -17,6 +17,7 @@ import {
   X,
   AlertCircle
 } from "lucide-react";
+import { Controller } from "@/lib/mvc/controller";
 
 interface Curso {
   id: string;
@@ -45,7 +46,7 @@ export default function DocenteDashboard() {
   const [courses, setCourses] = useState<Curso[]>([]);
   const [tasks, setTasks] = useState<Tarea[]>([]);
   const [loading, setLoading] = useState(true);
-  const [teacherName, setTeacherName] = useState("Prof. Juan Pérez");
+  const [teacherName, setTeacherName] = useState("Docente");
 
   // Formulario de Tareas
   const [taskCourseId, setTaskCourseId] = useState("");
@@ -69,23 +70,14 @@ export default function DocenteDashboard() {
   const [editLoading, setEditLoading] = useState(false);
 
   // Cargar Cursos y Tareas
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = () => {
     try {
-      const [resCursos, resTareas] = await Promise.all([
-        fetch("/api/docente/cursos"),
-        fetch("/api/docente/tareas")
-      ]);
+      const currentUser = Controller.getCurrentUser();
+      if (!currentUser) return;
 
-      if (resCursos.status === 401 || resTareas.status === 401) {
-        router.push("/");
-        return;
-      }
-
-      const dataCursos = await resCursos.json();
-      const dataTareas = await resTareas.json();
-
-      setCourses(dataCursos.cursos || []);
-      setTasks(dataTareas.tareas || []);
+      const data = Controller.getDocenteDashboardData(currentUser.id);
+      setCourses(data.cursos || []);
+      setTasks(data.tareas || []);
     } catch (err) {
       console.error("Error al cargar datos", err);
     } finally {
@@ -94,13 +86,21 @@ export default function DocenteDashboard() {
   };
 
   useEffect(() => {
+    // Protección de ruta a nivel de cliente
+    const currentUser = Controller.getCurrentUser();
+    if (!currentUser || currentUser.rol !== "DOCENTE") {
+      console.log("[Docente View] Usuario no autorizado. Redirigiendo a Login.");
+      router.push("/");
+      return;
+    }
+    setTeacherName(currentUser.nombre);
     fetchDashboardData();
   }, [router]);
 
   // Cierre de sesión
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      await fetch("/api/auth/logout", { method: "POST" });
+      Controller.logout();
       router.push("/");
     } catch (err) {
       console.error("Error al cerrar sesión", err);
@@ -108,25 +108,18 @@ export default function DocenteDashboard() {
   };
 
   // Crear Tarea
-  const handleCreateTask = async (e: React.FormEvent) => {
+  const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
     setTaskLoading(true);
     setTaskSuccess("");
 
     try {
-      const res = await fetch("/api/docente/tareas", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo: taskTitle,
-          descripcion: taskDesc,
-          fechaEntrega: taskDeadline,
-          cursoId: taskCourseId,
-        }),
+      Controller.createTask({
+        titulo: taskTitle,
+        descripcion: taskDesc,
+        fechaEntrega: taskDeadline,
+        cursoId: taskCourseId,
       });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Fallo al crear tarea");
 
       setTaskSuccess("¡Tarea creada y registrada correctamente!");
       setTaskTitle("");
@@ -135,7 +128,7 @@ export default function DocenteDashboard() {
       setTaskCourseId("");
       
       // Actualizar listado
-      await fetchDashboardData();
+      fetchDashboardData();
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -144,23 +137,20 @@ export default function DocenteDashboard() {
   };
 
   // Enviar Anuncio (WhatsApp)
-  const handleSendAnnouncement = async (e: React.FormEvent) => {
+  const handleSendAnnouncement = (e: React.FormEvent) => {
     e.preventDefault();
     setAnuncioLoading(true);
     setAnuncioSuccess("");
 
     try {
-      const res = await fetch("/api/docente/anuncios", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mensaje: anuncioMsg,
-          cursoId: anuncioCourseId,
-        }),
-      });
+      const currentUser = Controller.getCurrentUser();
+      if (!currentUser) throw new Error("Sesión no válida");
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Fallo al enviar anuncio");
+      Controller.sendAnnouncement({
+        mensaje: anuncioMsg,
+        cursoId: anuncioCourseId,
+        docenteId: currentUser.id,
+      });
 
       setAnuncioSuccess(`¡Anuncio enviado con éxito a los alumnos matriculados!`);
       setAnuncioMsg("");
@@ -173,16 +163,12 @@ export default function DocenteDashboard() {
   };
 
   // Eliminar Tarea
-  const handleDeleteTask = async (id: string) => {
+  const handleDeleteTask = (id: string) => {
     if (!confirm("¿Estás seguro de que deseas eliminar esta tarea?")) return;
 
     try {
-      const res = await fetch(`/api/docente/tareas/${id}`, { method: "DELETE" });
-      const data = await res.json();
-
-      if (!res.ok) throw new Error(data.error || "Fallo al eliminar tarea");
-
-      await fetchDashboardData();
+      Controller.deleteTask(id);
+      fetchDashboardData();
     } catch (err: any) {
       alert(err.message);
     }
@@ -201,27 +187,20 @@ export default function DocenteDashboard() {
   };
 
   // Guardar Edición
-  const handleUpdateTask = async (e: React.FormEvent) => {
+  const handleUpdateTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingTask) return;
     setEditLoading(true);
 
     try {
-      const res = await fetch(`/api/docente/tareas/${editingTask.id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          titulo: editTitle,
-          descripcion: editDesc,
-          fechaEntrega: editDeadline,
-        }),
+      Controller.updateTask(editingTask.id, {
+        titulo: editTitle,
+        descripcion: editDesc,
+        fechaEntrega: editDeadline,
       });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Fallo al actualizar tarea");
-
       setEditingTask(null);
-      await fetchDashboardData();
+      fetchDashboardData();
     } catch (err: any) {
       alert(err.message);
     } finally {

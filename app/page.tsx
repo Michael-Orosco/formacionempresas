@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { GraduationCap, Lock, Mail, Loader2, Sparkles, BookOpen } from "lucide-react";
+import { Controller } from "@/lib/mvc/controller";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,20 +18,10 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      // Autenticar a través del controlador MVC (LocalStorage)
+      const user = Controller.login(email, password);
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Algo salió mal");
-      }
-
-      // Redirigir según el rol retornado
-      const rol = data.user.rol;
+      const rol = user.rol;
       if (rol === "ADMIN") {
         router.push("/admin");
       } else if (rol === "DOCENTE") {
@@ -38,7 +29,7 @@ export default function LoginPage() {
       } else if (rol === "ESTUDIANTE") {
         router.push("/estudiante");
       } else {
-        throw new Error("Rol desconocido");
+        throw new Error("Rol de usuario no reconocido");
       }
     } catch (err: any) {
       setError(err.message || "Credenciales incorrectas");
