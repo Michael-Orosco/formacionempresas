@@ -24,6 +24,17 @@ export async function POST(request: Request) {
 
     const { email, password } = result.data;
 
+    // Auto-poblar (autoseed) si la base de datos está vacía
+    try {
+      const userCount = await prisma.usuario.count();
+      if (userCount === 0) {
+        const { seedDatabaseProgrammatically } = await import('@/lib/seed');
+        await seedDatabaseProgrammatically();
+      }
+    } catch (dbError: any) {
+      console.warn('[Login API] Falló el autoseed o la verificación de tablas, posiblemente la base de datos no esté inicializada:', dbError.message);
+    }
+
     // Buscar usuario en base de datos
     const user = await prisma.usuario.findUnique({
       where: { email },
