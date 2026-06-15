@@ -6,8 +6,8 @@ const schemaPath = path.join(__dirname, '../prisma/schema.prisma');
 try {
   let schema = fs.readFileSync(schemaPath, 'utf8');
 
-  // Si detectamos Vercel o producción, forzamos PostgreSQL
-  if (process.env.VERCEL === '1' || process.env.DATABASE_URL?.startsWith('postgres') || process.env.NODE_ENV === 'production') {
+  // Si detectamos Vercel o una URL de PostgreSQL explícita, configuramos PostgreSQL
+  if (process.env.VERCEL === '1' || process.env.DATABASE_URL?.startsWith('postgres')) {
     console.log('[Prisma Config Switcher] Entorno de producción/Vercel detectado. Configurando provider PostgreSQL...');
     
     // Cambiar datasource de SQLite a PostgreSQL
