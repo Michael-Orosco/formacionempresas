@@ -250,7 +250,7 @@ export default function DocenteDashboard() {
   return (
     <div className="flex-1 flex flex-col bg-slate-50 min-h-screen text-slate-800">
       
-      {/* Cabecera Principal - Estilo San Marcos */}
+      {/* Cabecera Principal */}
       <header className="bg-[#0F2C59] text-white sticky top-0 z-10 border-b-4 border-[#A30000] shadow-md px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="bg-white/10 p-2 rounded-lg text-amber-400">
@@ -258,12 +258,12 @@ export default function DocenteDashboard() {
           </div>
           <div>
             <span className="text-lg font-extrabold tracking-wide uppercase flex items-center gap-2">
-              UNMSM - SUM
+              EduControl
               <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 tracking-normal normal-case">
                 Portal Docente
               </span>
             </span>
-            <p className="text-[10px] text-slate-300">Universidad Nacional Mayor de San Marcos</p>
+            <p className="text-[10px] text-slate-300">Gestión Escolar Inteligente</p>
           </div>
         </div>
         

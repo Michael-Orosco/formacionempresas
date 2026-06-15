@@ -66,7 +66,7 @@ export default function LoginPage() {
       {/* Contenedor principal con diseño institucional */}
       <div className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
         
-        {/* Franja Superior Institucional (Estilo San Marcos SUM) */}
+        {/* Franja Superior Institucional */}
         <div className="bg-[#0F2C59] px-6 py-5 text-white flex items-center justify-between border-b-4 border-[#A30000]">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-white/10 rounded-lg text-amber-400">
@@ -74,17 +74,12 @@ export default function LoginPage() {
             </div>
             <div>
               <h1 className="text-lg font-bold tracking-wide uppercase leading-tight">
-                UNMSM - SUM
+                EduControl
               </h1>
               <p className="text-[10px] text-slate-300 font-medium">
-                SISTEMA ÚNICO DE MATRÍCULA
+                PORTAL ACADÉMICO
               </p>
             </div>
-          </div>
-          <div className="text-right">
-            <span className="text-[10px] bg-amber-500/25 border border-amber-400/30 text-amber-300 px-2 py-0.5 rounded-full font-bold">
-              EduControl
-            </span>
           </div>
         </div>
 
@@ -92,10 +87,10 @@ export default function LoginPage() {
         <div className="p-8">
           <div className="text-center mb-6">
             <h2 className="text-xl font-bold text-slate-800 flex items-center justify-center gap-1.5">
-              Portal Académico
+              Iniciar Sesión
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Ingresa tus credenciales institucionales para acceder a tus servicios.
+              Ingresa tus credenciales institucionales para acceder.
             </p>
           </div>
 
@@ -123,7 +118,7 @@ export default function LoginPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="usuario@unmsm.edu.pe"
+                  placeholder="usuario@colegio.edu.pe"
                   className="w-full bg-slate-50 border border-slate-300 focus:border-[#0F2C59] focus:ring-1 focus:ring-[#0F2C59] rounded-lg py-2.5 pl-9 pr-3 text-slate-800 placeholder-slate-400 focus:outline-none transition-all text-sm"
                 />
               </div>
@@ -198,8 +193,8 @@ export default function LoginPage() {
       
       {/* Footer de la página */}
       <div className="mt-6 text-center text-[11px] text-slate-500">
-        <p>© 2026 Universidad Nacional Mayor de San Marcos</p>
-        <p className="mt-0.5">Sistema Único de Matrícula (SUM) · Integración EduControl</p>
+        <p>© 2026 EduControl</p>
+        <p className="mt-0.5">Gestión Escolar Inteligente PWA</p>
       </div>
 
     </div>
