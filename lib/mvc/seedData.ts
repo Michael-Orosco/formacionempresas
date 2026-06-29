@@ -37,7 +37,8 @@ export const SEED_IDS = {
     pedrito: 'user-alumno-pedrito',
     lucia: 'user-alumno-lucia',
     carlos: 'user-alumno-carlos',
-    padre: 'user-padre-roberto',
+    padre1: 'user-padre-1',
+    padre2: 'user-padre-2',
   },
   cursos: {
     math5: 'curso-math-5',
@@ -51,7 +52,8 @@ export const SEED_CREDENTIALS = {
   admin: { email: 'admin@colegio.edu.pe', password: 'admin123' },
   docente: { email: 'juan.perez@colegio.edu.pe', password: 'docente123' },
   estudiante: { email: 'pedrito@colegio.edu.pe', password: 'alumno123' },
-  padre: { email: 'roberto.alcantara@colegio.edu.pe', password: 'padre123' },
+  padre1: { email: 'padre1@colegio.edu.pe', password: 'padre123' },
+  padre2: { email: 'padre2@colegio.edu.pe', password: 'padre123' },
 } as const;
 
 /** Códigos de vinculación que el padre ingresa para asociar un hijo */
@@ -178,12 +180,21 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
       codigoVinculo: SEED_CODIGOS_VINCULO.carlos,
     },
     {
-      id: usuarios.padre,
-      email: SEED_CREDENTIALS.padre.email,
-      passwordHash: SEED_CREDENTIALS.padre.password,
+      id: usuarios.padre1,
+      email: SEED_CREDENTIALS.padre1.email,
+      passwordHash: SEED_CREDENTIALS.padre1.password,
       rol: 'PADRE',
       nombre: 'Roberto Alcántara (Padre)',
       telefono: '+51900000201',
+      colegioId,
+    },
+    {
+      id: usuarios.padre2,
+      email: SEED_CREDENTIALS.padre2.email,
+      passwordHash: SEED_CREDENTIALS.padre2.password,
+      rol: 'PADRE',
+      nombre: 'Carmen Fernández (Madre)',
+      telefono: '+51900000202',
       colegioId,
     },
   ];
@@ -300,8 +311,14 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
   const vinculaciones: VinculacionPadre[] = [
     {
       id: 'vinc-1',
-      padreId: usuarios.padre,
+      padreId: usuarios.padre1,
       estudianteId: usuarios.pedrito,
+      fechaVinculacion: dates.hoy.toISOString(),
+    },
+    {
+      id: 'vinc-2',
+      padreId: usuarios.padre2,
+      estudianteId: usuarios.lucia,
       fechaVinculacion: dates.hoy.toISOString(),
     },
   ];

@@ -51,7 +51,7 @@ export default function LoginPage() {
       setEmail("pedrito@colegio.edu.pe");
       setPassword("alumno123");
     } else if (role === "padre") {
-      setEmail("roberto.alcantara@colegio.edu.pe");
+      setEmail("padre1@colegio.edu.pe");
       setPassword("padre123");
     }
   };
