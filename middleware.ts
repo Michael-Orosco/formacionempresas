@@ -9,7 +9,8 @@ export const config = {
   matcher: [
     '/admin/:path*',
     '/docente/:path*',
-    '/estudiante/:path*'
+    '/estudiante/:path*',
+    '/padre/:path*'
   ],
 };
 

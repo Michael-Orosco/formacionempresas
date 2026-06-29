@@ -1,20 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  GraduationCap, 
-  Calendar, 
-  BookOpen, 
-  Clock, 
-  LogOut, 
-  CheckCircle, 
-  AlertTriangle, 
-  User, 
+import {
+  GraduationCap,
+  Calendar,
+  BookOpen,
+  Clock,
+  LogOut,
+  CheckCircle,
+  AlertTriangle,
+  User,
   Award,
   ChevronRight,
   Loader2,
-  Bell
+  Bell,
+  MessageCircle,
+  Send,
+  X
 } from "lucide-react";
 import { Controller } from "@/lib/mvc/controller";
 
@@ -50,14 +53,34 @@ interface Silabo {
   };
 }
 
+interface Anuncio {
+  id: string;
+  mensaje: string;
+  fechaPublicacion: string;
+  curso: { id: string; nombre: string };
+  docente: string;
+}
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export default function EstudianteDashboard() {
   const router = useRouter();
   const [courses, setCourses] = useState<Curso[]>([]);
   const [tasks, setTasks] = useState<Tarea[]>([]);
   const [syllabus, setSyllabus] = useState<Silabo[]>([]);
+  const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userName, setUserName] = useState("Estudiante");
+
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [chatInput, setChatInput] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Protección de ruta a nivel de cliente
@@ -75,6 +98,7 @@ export default function EstudianteDashboard() {
         setCourses(data.matriculas || []);
         setTasks(data.tareas || []);
         setSyllabus(data.silabos || []);
+        setAnuncios(data.anuncios || []);
       } catch (err: any) {
         setError(err.message || "Error de red");
       } finally {
@@ -130,6 +154,59 @@ export default function EstudianteDashboard() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatMessages, chatOpen]);
+
+  const handleSendChat = async () => {
+    const text = chatInput.trim();
+    if (!text || chatLoading) return;
+
+    const nextMessages: ChatMessage[] = [...chatMessages, { role: "user", content: text }];
+    setChatMessages(nextMessages);
+    setChatInput("");
+    setChatLoading(true);
+
+    try {
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: nextMessages,
+          context: {
+            nombreEstudiante: userName,
+            cursos: courses.map((c) => ({ nombre: c.nombre, docente: c.docente.nombre })),
+            tareas: tasks.map((t) => ({
+              titulo: t.titulo,
+              descripcion: t.descripcion,
+              fechaEntrega: t.fechaEntrega,
+              estado: t.estado,
+              curso: t.curso.nombre,
+            })),
+            silabos: syllabus.map((s) => ({ semana: s.semana, tema: s.tema, curso: s.curso.nombre })),
+            anuncios: anuncios.map((a) => ({
+              mensaje: a.mensaje,
+              fechaPublicacion: a.fechaPublicacion,
+              curso: a.curso.nombre,
+              docente: a.docente,
+            })),
+          },
+        }),
+      });
+
+      const data = await res.json();
+      const reply = res.ok ? data.reply : data.error || "Ocurrió un error al consultar al asistente.";
+      setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+    } catch {
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "No pude conectarme con el asistente. Intenta de nuevo." },
+      ]);
+    } finally {
+      setChatLoading(false);
+    }
   };
 
   // Horario estático de prueba para la sección de accesos rápidos
@@ -352,6 +429,81 @@ export default function EstudianteDashboard() {
         </div>
 
       </main>
+
+      {/* Asistente Virtual Escolar */}
+      {chatOpen ? (
+        <div className="fixed bottom-6 right-6 z-20 w-[22rem] max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-2xl flex flex-col h-[28rem] overflow-hidden">
+          <div className="bg-[#0F2C59] text-white px-4 py-3 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <MessageCircle className="h-4 w-4 text-amber-400" />
+              <span className="text-xs font-bold uppercase tracking-wide">Asistente Escolar</span>
+            </div>
+            <button
+              onClick={() => setChatOpen(false)}
+              className="p-1 hover:bg-white/10 rounded-lg cursor-pointer"
+              title="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-slate-50">
+            {chatMessages.length === 0 ? (
+              <p className="text-[11px] text-slate-500 text-center py-6">
+                Pregúntame sobre tus clases, tareas, horarios o avisos. Por ejemplo: &quot;¿qué tareas tengo pendientes?&quot;
+              </p>
+            ) : (
+              chatMessages.map((msg, idx) => (
+                <div
+                  key={idx}
+                  className={`max-w-[85%] px-3 py-2 rounded-lg text-xs whitespace-pre-wrap ${
+                    msg.role === "user"
+                      ? "bg-[#0F2C59] text-white ml-auto"
+                      : "bg-white border border-slate-200 text-slate-700"
+                  }`}
+                >
+                  {msg.content}
+                </div>
+              ))
+            )}
+            {chatLoading && (
+              <div className="bg-white border border-slate-200 text-slate-400 text-xs px-3 py-2 rounded-lg flex items-center gap-2 w-fit">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Pensando...
+              </div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
+
+          <div className="border-t border-slate-100 p-2.5 flex items-center gap-2 shrink-0">
+            <input
+              type="text"
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSendChat();
+              }}
+              placeholder="Escribe tu pregunta..."
+              className="flex-1 bg-slate-50 border border-slate-300 focus:border-[#0F2C59] focus:ring-1 focus:ring-[#0F2C59] rounded-lg py-2 px-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
+            />
+            <button
+              onClick={handleSendChat}
+              disabled={chatLoading || !chatInput.trim()}
+              className="bg-[#0F2C59] hover:bg-[#143d7c] disabled:opacity-40 text-white p-2 rounded-lg cursor-pointer transition-all"
+              title="Enviar"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => setChatOpen(true)}
+          className="fixed bottom-6 right-6 z-20 bg-[#0F2C59] hover:bg-[#143d7c] text-white p-4 rounded-full shadow-lg cursor-pointer transition-all flex items-center justify-center"
+          title="Abrir asistente escolar"
+        >
+          <MessageCircle className="h-5 w-5" />
+        </button>
+      )}
     </div>
   );
 }

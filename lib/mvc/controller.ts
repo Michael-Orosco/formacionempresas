@@ -1,9 +1,14 @@
-import { Model, Usuario, Tarea, Anuncio, LogNotificacion } from './model';
+import { Model, Usuario, Tarea, Anuncio, LogNotificacion, VinculacionPadre } from './model';
 
 export const Controller = {
   // Inicialización segura
   init() {
     Model.initDatabase();
+  },
+
+  // Restablecer datos semilla (útil en desarrollo)
+  resetSeed() {
+    Model.resetDatabase();
   },
 
   // Autenticación de usuario
@@ -141,6 +146,13 @@ export const Controller = {
     let matriculas = Model.getMatriculas();
     matriculas = matriculas.filter(m => m.estudianteId !== id);
     Model.setMatriculas(matriculas);
+
+    // Limpiar vinculaciones huérfanas
+    let vinculaciones = Model.getVinculaciones();
+    vinculaciones = vinculaciones.filter(
+      v => v.estudianteId !== id && v.padreId !== id
+    );
+    Model.setVinculaciones(vinculaciones);
 
     return true;
   },
@@ -345,10 +357,249 @@ export const Controller = {
       };
     });
 
+    // Obtener avisos publicados en sus cursos
+    const announcements = Model.getAnuncios().filter(a => courseIds.includes(a.cursoId));
+    const studentAnuncios = announcements
+      .map(a => {
+        const curso = allCourses.find(c => c.id === a.cursoId)!;
+        const docente = users.find(u => u.id === a.docenteId)!;
+        return {
+          id: a.id,
+          mensaje: a.mensaje,
+          fechaPublicacion: a.fechaPublicacion,
+          curso: { id: curso.id, nombre: curso.nombre },
+          docente: docente.nombre
+        };
+      })
+      .sort((a, b) => new Date(b.fechaPublicacion).getTime() - new Date(a.fechaPublicacion).getTime());
+
     return {
       matriculas: studentCourses,
       tareas: studentTasks,
-      silabos: studentSyllabus
+      silabos: studentSyllabus,
+      anuncios: studentAnuncios
+    };
+  },
+
+  // PADRE: Obtener hijos vinculados con datos de aula
+  getHijosVinculados(padreId: string) {
+    this.init();
+    const vinculaciones = Model.getVinculaciones().filter(v => v.padreId === padreId);
+    const usuarios = Model.getUsuarios();
+    const aulas = Model.getAulas();
+
+    return vinculaciones.map(v => {
+      const estudiante = usuarios.find(u => u.id === v.estudianteId)!;
+      const aula = aulas.find(a => a.id === estudiante.gradoSeccionId);
+      return {
+        vinculacionId: v.id,
+        id: estudiante.id,
+        nombre: estudiante.nombre,
+        email: estudiante.email,
+        aula: aula
+          ? { grado: aula.grado, seccion: aula.seccion }
+          : { grado: 'Sin aula', seccion: '-' },
+        fechaVinculacion: v.fechaVinculacion,
+      };
+    });
+  },
+
+  // PADRE: Vincular un hijo mediante código institucional
+  vincularEstudiante(padreId: string, codigoVinculo: string) {
+    this.init();
+    const codigo = codigoVinculo.trim().toUpperCase();
+    if (!codigo) {
+      throw new Error('Ingresa un código de vinculación válido.');
+    }
+
+    const padre = Model.getUsuarios().find(u => u.id === padreId);
+    if (!padre || padre.rol !== 'PADRE') {
+      throw new Error('Solo los usuarios con rol PADRE pueden vincular estudiantes.');
+    }
+
+    const estudiante = Model.getUsuarios().find(
+      u => u.rol === 'ESTUDIANTE' && u.codigoVinculo?.toUpperCase() === codigo
+    );
+    if (!estudiante) {
+      throw new Error('Código de vinculación no encontrado. Verifica con el colegio.');
+    }
+
+    const vinculaciones = Model.getVinculaciones();
+    const yaVinculado = vinculaciones.some(
+      v => v.padreId === padreId && v.estudianteId === estudiante.id
+    );
+    if (yaVinculado) {
+      throw new Error(`${estudiante.nombre} ya está vinculado a tu cuenta.`);
+    }
+
+    const nuevaVinculacion: VinculacionPadre = {
+      id: 'vinc_' + Math.random().toString(36).substring(2, 11),
+      padreId,
+      estudianteId: estudiante.id,
+      fechaVinculacion: new Date().toISOString(),
+    };
+
+    vinculaciones.push(nuevaVinculacion);
+    Model.setVinculaciones(vinculaciones);
+
+    const aula = Model.getAulas().find(a => a.id === estudiante.gradoSeccionId);
+    return {
+      vinculacionId: nuevaVinculacion.id,
+      id: estudiante.id,
+      nombre: estudiante.nombre,
+      email: estudiante.email,
+      aula: aula
+        ? { grado: aula.grado, seccion: aula.seccion }
+        : { grado: 'Sin aula', seccion: '-' },
+      fechaVinculacion: nuevaVinculacion.fechaVinculacion,
+    };
+  },
+
+  // PADRE: Desvincular un hijo
+  desvincularEstudiante(padreId: string, estudianteId: string) {
+    this.init();
+    let vinculaciones = Model.getVinculaciones();
+    const existe = vinculaciones.some(
+      v => v.padreId === padreId && v.estudianteId === estudianteId
+    );
+    if (!existe) {
+      throw new Error('No existe una vinculación activa con este estudiante.');
+    }
+
+    vinculaciones = vinculaciones.filter(
+      v => !(v.padreId === padreId && v.estudianteId === estudianteId)
+    );
+    Model.setVinculaciones(vinculaciones);
+    return true;
+  },
+
+  // PADRE: Dashboard consolidado de hijos vinculados
+  getPadreDashboardData(padreId: string, estudianteIdFiltro?: string) {
+    this.init();
+    const hijos = this.getHijosVinculados(padreId);
+    const hijoIds = estudianteIdFiltro
+      ? hijos.filter(h => h.id === estudianteIdFiltro).map(h => h.id)
+      : hijos.map(h => h.id);
+
+    const usuarios = Model.getUsuarios();
+    const allCourses = Model.getCursos();
+    const allTasks = Model.getTareas();
+    const allSilabos = Model.getSilabos();
+    const allAnuncios = Model.getAnuncios();
+    const allLogs = Model.getLogs();
+    const matriculas = Model.getMatriculas().filter(m => hijoIds.includes(m.estudianteId));
+
+    const courseIds = [...new Set(matriculas.map(m => m.cursoId))];
+
+    const tareas = matriculas
+      .flatMap(m => {
+        const curso = allCourses.find(c => c.id === m.cursoId)!;
+        const estudiante = usuarios.find(u => u.id === m.estudianteId)!;
+        return allTasks
+          .filter(t => t.cursoId === m.cursoId)
+          .map(t => ({
+            id: t.id,
+            titulo: t.titulo,
+            descripcion: t.descripcion,
+            fechaEntrega: t.fechaEntrega,
+            estado: t.estado,
+            curso: { id: curso.id, nombre: curso.nombre },
+            estudiante: { id: estudiante.id, nombre: estudiante.nombre },
+          }));
+      })
+      .sort((a, b) => new Date(a.fechaEntrega).getTime() - new Date(b.fechaEntrega).getTime());
+
+    const cursos = matriculas.map(m => {
+      const curso = allCourses.find(c => c.id === m.cursoId)!;
+      const docente = usuarios.find(u => u.id === curso.docenteId)!;
+      const estudiante = usuarios.find(u => u.id === m.estudianteId)!;
+      return {
+        id: curso.id,
+        nombre: curso.nombre,
+        descripcion: curso.descripcion || '',
+        estudiante: { id: estudiante.id, nombre: estudiante.nombre },
+        docente: { nombre: docente.nombre, email: docente.email },
+      };
+    });
+
+    const silabos = matriculas.flatMap(m => {
+      const curso = allCourses.find(c => c.id === m.cursoId)!;
+      const estudiante = usuarios.find(u => u.id === m.estudianteId)!;
+      return allSilabos
+        .filter(s => s.cursoId === m.cursoId)
+        .map(s => ({
+          id: s.id,
+          semana: s.semana,
+          tema: s.tema,
+          curso: { id: curso.id, nombre: curso.nombre },
+          estudiante: { id: estudiante.id, nombre: estudiante.nombre },
+        }));
+    });
+
+    const anuncios = allAnuncios
+      .filter(a => courseIds.includes(a.cursoId))
+      .map(a => {
+        const curso = allCourses.find(c => c.id === a.cursoId)!;
+        const docente = usuarios.find(u => u.id === a.docenteId)!;
+        const estudiantesEnCurso = matriculas
+          .filter(m => m.cursoId === a.cursoId)
+          .map(m => usuarios.find(u => u.id === m.estudianteId)!.nombre);
+        return {
+          id: a.id,
+          mensaje: a.mensaje,
+          fechaPublicacion: a.fechaPublicacion,
+          curso: { id: curso.id, nombre: curso.nombre },
+          docente: docente.nombre,
+          estudiantes: estudiantesEnCurso,
+        };
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.fechaPublicacion).getTime() - new Date(a.fechaPublicacion).getTime()
+      );
+
+    const logs = allLogs
+      .filter(l => hijoIds.includes(l.estudianteId))
+      .map(l => {
+        const estudiante = usuarios.find(u => u.id === l.estudianteId)!;
+        const tarea = l.tareaId ? allTasks.find(t => t.id === l.tareaId) : undefined;
+        return {
+          id: l.id,
+          estudiante: { id: estudiante.id, nombre: estudiante.nombre },
+          tarea: tarea ? { id: tarea.id, titulo: tarea.titulo } : undefined,
+          fechaEnvio: l.fechaEnvio,
+          estado: l.estado,
+        };
+      })
+      .sort(
+        (a, b) => new Date(b.fechaEnvio).getTime() - new Date(a.fechaEnvio).getTime()
+      );
+
+    const ahora = new Date();
+    const tareasPendientes = tareas.filter(t => t.estado === 'PENDIENTE');
+    const tareasUrgentes = tareasPendientes.filter(t => {
+      const diffHours =
+        (new Date(t.fechaEntrega).getTime() - ahora.getTime()) / (1000 * 60 * 60);
+      return diffHours >= 0 && diffHours < 24;
+    });
+
+    const resumen = {
+      totalHijos: hijos.length,
+      tareasPendientes: tareasPendientes.length,
+      tareasUrgentes: tareasUrgentes.length,
+      tareasEntregadas: tareas.filter(t => t.estado === 'ENTREGADA').length,
+      notificacionesExito: logs.filter(l => l.estado === 'EXITO').length,
+      notificacionesFallo: logs.filter(l => l.estado === 'FALLO').length,
+    };
+
+    return {
+      hijos,
+      resumen,
+      tareas,
+      cursos,
+      silabos,
+      anuncios,
+      logs,
     };
   }
 };

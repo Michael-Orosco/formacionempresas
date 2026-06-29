@@ -28,6 +28,8 @@ export default function LoginPage() {
         router.push("/docente");
       } else if (rol === "ESTUDIANTE") {
         router.push("/estudiante");
+      } else if (rol === "PADRE") {
+        router.push("/padre");
       } else {
         throw new Error("Rol de usuario no reconocido");
       }
@@ -48,6 +50,9 @@ export default function LoginPage() {
     } else if (role === "estudiante") {
       setEmail("pedrito@colegio.edu.pe");
       setPassword("alumno123");
+    } else if (role === "padre") {
+      setEmail("roberto.alcantara@colegio.edu.pe");
+      setPassword("padre123");
     }
   };
 
@@ -157,7 +162,7 @@ export default function LoginPage() {
             <p className="text-center text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-3">
               Accesos de Prueba Autorizados
             </p>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-2">
               <button
                 onClick={() => handlePrefill("admin")}
                 className="bg-slate-50 border border-slate-200 hover:border-[#0F2C59] hover:bg-slate-100/50 text-[#0F2C59] rounded-lg py-2 text-xs font-semibold cursor-pointer transition-all text-center"
@@ -175,6 +180,12 @@ export default function LoginPage() {
                 className="bg-slate-50 border border-slate-200 hover:border-emerald-600 hover:bg-slate-100/50 text-emerald-700 rounded-lg py-2 text-xs font-semibold cursor-pointer transition-all text-center"
               >
                 Estudiante
+              </button>
+              <button
+                onClick={() => handlePrefill("padre")}
+                className="bg-slate-50 border border-slate-200 hover:border-violet-600 hover:bg-slate-100/50 text-violet-700 rounded-lg py-2 text-xs font-semibold cursor-pointer transition-all text-center"
+              >
+                Padre
               </button>
             </div>
           </div>
