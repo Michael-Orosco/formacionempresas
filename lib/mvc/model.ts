@@ -81,6 +81,7 @@ import {
   applySeedToLocalStorage,
   buildSeedData,
   clearLocalStorageDatabase,
+  CURRENT_SEED_VERSION,
   STORAGE_KEYS,
 } from './seedData';
 
@@ -100,12 +101,20 @@ function setItem<T>(key: string, value: T): void {
 }
 
 export const Model = {
-  // Inicializar base de datos local en LocalStorage si está vacía
+  // Inicializar base de datos local en LocalStorage si está vacía o si el seed está desactualizado
   initDatabase() {
     if (typeof window === 'undefined') return;
 
-    if (!localStorage.getItem(KEYS.USUARIOS)) {
-      console.log('[MVC Model] Inicializando LocalStorage con datos semilla...');
+    const savedVersion = localStorage.getItem(STORAGE_KEYS.SEED_VERSION);
+    const needsReset =
+      !localStorage.getItem(STORAGE_KEYS.USUARIOS) ||
+      savedVersion !== CURRENT_SEED_VERSION;
+
+    if (needsReset) {
+      console.log(
+        `[MVC Model] Seed desactualizado (v${savedVersion ?? 'ninguna'} → v${CURRENT_SEED_VERSION}). Reinicializando LocalStorage...`
+      );
+      clearLocalStorageDatabase();
       applySeedToLocalStorage(buildSeedData());
     }
   },

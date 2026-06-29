@@ -24,7 +24,14 @@ export const STORAGE_KEYS = {
   LOGS: 'educontrol_logs',
   VINCULACIONES: 'educontrol_vinculaciones',
   SESSION: 'educontrol_session',
+  SEED_VERSION: 'educontrol_seed_version',
 } as const;
+
+/**
+ * Versión actual del seed. Incrementar este valor fuerza un reseteo
+ * automático del LocalStorage en todos los clientes al próximo acceso.
+ */
+export const CURRENT_SEED_VERSION = '2';
 
 /** IDs fijos para mantener relaciones consistentes entre entidades */
 export const SEED_IDS = {
@@ -351,6 +358,8 @@ export function applySeedToLocalStorage(data: SeedDatabase): void {
   localStorage.setItem(STORAGE_KEYS.ANUNCIOS, JSON.stringify(data.anuncios));
   localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(data.logs));
   localStorage.setItem(STORAGE_KEYS.VINCULACIONES, JSON.stringify(data.vinculaciones));
+  // Marca la versión del seed para detectar migraciones futuras
+  localStorage.setItem(STORAGE_KEYS.SEED_VERSION, CURRENT_SEED_VERSION);
 }
 
 /** Borra todos los datos de la app en localStorage, incluida la sesión activa. */
