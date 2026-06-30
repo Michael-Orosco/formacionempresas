@@ -3,7 +3,6 @@ export interface Colegio {
   nombre: string;
   direccion: string;
   licenciaActiva: boolean;
-  tier?: 'BASICO' | 'ESTANDAR' | 'PREMIUM';
 }
 
 export interface Usuario {

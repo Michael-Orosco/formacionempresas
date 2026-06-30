@@ -42,11 +42,31 @@ export const Controller = {
   // ADMINISTRADOR: Obtener datos para la consola
   getAdminDashboardData() {
     this.init();
-    const users = Model.getUsuarios();
-    const courses = Model.getCursos();
-    const tasks = Model.getTareas();
-    const logs = Model.getLogs();
-    const aulas = Model.getAulas();
+    const currentUser = Model.getCurrentUser();
+    const colegioId = currentUser?.colegioId;
+
+    let users = Model.getUsuarios();
+    let aulas = Model.getAulas();
+    let courses = Model.getCursos();
+
+    if (colegioId) {
+      users = users.filter(u => u.colegioId === colegioId);
+      aulas = aulas.filter(a => a.colegioId === colegioId);
+      const aulaIds = aulas.map(a => a.id);
+      courses = courses.filter(c => aulaIds.includes(c.gradoSeccionId));
+    }
+
+    let tasks = Model.getTareas();
+    if (colegioId) {
+      const courseIds = courses.map(c => c.id);
+      tasks = tasks.filter(t => courseIds.includes(t.cursoId));
+    }
+
+    let logs = Model.getLogs();
+    if (colegioId) {
+      const studentIds = users.filter(u => u.rol === 'ESTUDIANTE').map(u => u.id);
+      logs = logs.filter(l => studentIds.includes(l.estudianteId));
+    }
 
     const totalEstudiantes = users.filter(u => u.rol === 'ESTUDIANTE').length;
     const totalDocentes = users.filter(u => u.rol === 'DOCENTE').length;
@@ -456,8 +476,10 @@ export const Controller = {
     let esSenior = false;
     if (student?.gradoSeccionId) {
       const aula = Model.getAulas().find(a => a.id === student?.gradoSeccionId);
-      if (aula && (aula.grado.includes('4') || aula.grado.includes('5') || aula.grado.toLowerCase().includes('cuarto') || aula.grado.toLowerCase().includes('quinto'))) {
-        esSenior = true;
+      if (aula) {
+        const esSecundaria = aula.grado.toLowerCase().includes('secundaria');
+        const esCuartoOQuinto = /4|5|cuarto|quinto/i.test(aula.grado);
+        esSenior = esSecundaria && esCuartoOQuinto;
       }
     }
     const academias = Model.getAcademias().filter(a => a.activa);
