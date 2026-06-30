@@ -1,6 +1,6 @@
 {
-  "name": "Portal Educativo Escolar PWA",
-  "short_name": "ColegioPWA",
+  "name": "Cognitor",
+  "short_name": "Cognitor",
   "description": "Plataforma escolar inteligente con horarios, sílabos y notificaciones de WhatsApp",
   "start_url": "/",
   "display": "standalone",

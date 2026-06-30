@@ -17,10 +17,10 @@ export interface Usuario {
   codigoVinculo?: string; // Código único para que padres vinculen al estudiante
 }
 
-export interface VinculacionPadre {
+export interface VinculacionPadreAlumno {
   id: string;
   padreId: string;
-  estudianteId: string;
+  alumnoId: string;
   fechaVinculacion: string;
 }
 
@@ -43,6 +43,15 @@ export interface Matricula {
   id: string;
   estudianteId: string;
   cursoId: string;
+  codigoMatricula?: string;
+}
+
+export interface ActividadAlumno {
+  id: string;
+  alumnoId: string;
+  cursoId?: string;
+  tipoEvento: string;
+  fecha: string;
 }
 
 export interface Tarea {
@@ -175,11 +184,17 @@ export const Model = {
   setLogs(logs: LogNotificacion[]): void {
     setItem(KEYS.LOGS, logs);
   },
-  getVinculaciones(): VinculacionPadre[] {
-    return getItem<VinculacionPadre[]>(KEYS.VINCULACIONES) || [];
+  getVinculaciones(): VinculacionPadreAlumno[] {
+    return getItem<VinculacionPadreAlumno[]>(KEYS.VINCULACIONES) || [];
   },
-  setVinculaciones(vinculaciones: VinculacionPadre[]): void {
+  setVinculaciones(vinculaciones: VinculacionPadreAlumno[]): void {
     setItem(KEYS.VINCULACIONES, vinculaciones);
+  },
+  getActividad(): ActividadAlumno[] {
+    return getItem<ActividadAlumno[]>((KEYS as any).ACTIVIDAD) || [];
+  },
+  setActividad(actividades: ActividadAlumno[]): void {
+    setItem((KEYS as any).ACTIVIDAD, actividades);
   },
   getCurrentUser(): Usuario | null {
     return getItem<Usuario>(KEYS.SESSION);

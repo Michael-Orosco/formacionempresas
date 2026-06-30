@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   GraduationCap,
@@ -10,14 +10,12 @@ import {
   LogOut,
   CheckCircle,
   AlertTriangle,
-  User,
   Award,
   ChevronRight,
   Loader2,
   Bell,
-  MessageCircle,
-  Send,
-  X
+  Rocket,
+  Lock
 } from "lucide-react";
 import { Controller } from "@/lib/mvc/controller";
 
@@ -61,10 +59,6 @@ interface Anuncio {
   docente: string;
 }
 
-interface ChatMessage {
-  role: "user" | "assistant";
-  content: string;
-}
 
 export default function EstudianteDashboard() {
   const router = useRouter();
@@ -76,12 +70,6 @@ export default function EstudianteDashboard() {
   const [error, setError] = useState("");
   const [userName, setUserName] = useState("Estudiante");
 
-  const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
-  const [chatInput, setChatInput] = useState("");
-  const [chatLoading, setChatLoading] = useState(false);
-  const chatEndRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     // Protección de ruta a nivel de cliente
     const currentUser = Controller.getCurrentUser();
@@ -92,15 +80,19 @@ export default function EstudianteDashboard() {
     }
     setUserName(currentUser.nombre);
 
+    const userId = currentUser.id;
+
     function fetchDashboardData() {
       try {
-        const data = Controller.getEstudianteDashboardData(currentUser.id);
+        const data = Controller.getEstudianteDashboardData(userId);
         setCourses(data.matriculas || []);
         setTasks(data.tareas || []);
         setSyllabus(data.silabos || []);
         setAnuncios(data.anuncios || []);
-      } catch (err: any) {
-        setError(err.message || "Error de red");
+
+        Controller.registrarActividad(userId, null, 'LOGIN');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : "Error de red");
       } finally {
         setLoading(false);
       }
@@ -108,6 +100,13 @@ export default function EstudianteDashboard() {
 
     fetchDashboardData();
   }, [router]);
+
+  const handleViewTask = (tarea: Tarea) => {
+    const user = Controller.getCurrentUser();
+    if (user) {
+      Controller.registrarActividad(user.id, tarea.curso.id, 'TAREA_VISTA');
+    }
+  };
 
   const handleLogout = () => {
     try {
@@ -156,92 +155,36 @@ export default function EstudianteDashboard() {
     });
   };
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages, chatOpen]);
 
-  const handleSendChat = async () => {
-    const text = chatInput.trim();
-    if (!text || chatLoading) return;
-
-    const nextMessages: ChatMessage[] = [...chatMessages, { role: "user", content: text }];
-    setChatMessages(nextMessages);
-    setChatInput("");
-    setChatLoading(true);
-
-    try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messages: nextMessages,
-          context: {
-            nombreEstudiante: userName,
-            cursos: courses.map((c) => ({ nombre: c.nombre, docente: c.docente.nombre })),
-            tareas: tasks.map((t) => ({
-              titulo: t.titulo,
-              descripcion: t.descripcion,
-              fechaEntrega: t.fechaEntrega,
-              estado: t.estado,
-              curso: t.curso.nombre,
-            })),
-            silabos: syllabus.map((s) => ({ semana: s.semana, tema: s.tema, curso: s.curso.nombre })),
-            anuncios: anuncios.map((a) => ({
-              mensaje: a.mensaje,
-              fechaPublicacion: a.fechaPublicacion,
-              curso: a.curso.nombre,
-              docente: a.docente,
-            })),
-          },
-        }),
-      });
-
-      const data = await res.json();
-      const reply = res.ok ? data.reply : data.error || "Ocurrió un error al consultar al asistente.";
-      setChatMessages((prev) => [...prev, { role: "assistant", content: reply }]);
-    } catch {
-      setChatMessages((prev) => [
-        ...prev,
-        { role: "assistant", content: "No pude conectarme con el asistente. Intenta de nuevo." },
-      ]);
-    } finally {
-      setChatLoading(false);
-    }
-  };
-
-  // Horario estático de prueba para la sección de accesos rápidos
-  const horarioHoy = [
-    { hora: "08:00 - 09:30", curso: "Álgebra y Geometría", aula: "Aula 101-A", color: "border-l-[#0F2C59]" },
-    { hora: "09:45 - 11:15", curso: "Ciencia y Tecnología", aula: "Laboratorio B", color: "border-l-emerald-600" },
-    { hora: "11:30 - 13:00", curso: "Educación Física", aula: "Gimnasio", color: "border-l-[#A30000]" },
-  ];
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 min-h-screen">
-        <Loader2 className="h-10 w-10 text-[#0F2C59] animate-spin mb-4" />
-        <p className="text-slate-600 text-sm font-semibold">Cargando portal del estudiante...</p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-slate-100 min-h-screen">
+        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
+          <Loader2 className="h-10 w-10 text-[#0F2C59] animate-spin" />
+          <p className="text-slate-600 text-sm font-semibold">Cargando portal del estudiante...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen text-slate-800">
+    <div className="flex-1 flex flex-col bg-slate-100 min-h-screen text-slate-800">
       
       {/* Cabecera Principal */}
-      <header className="bg-[#0F2C59] text-white sticky top-0 z-10 border-b-4 border-[#A30000] shadow-md px-6 py-4 flex items-center justify-between">
+      <header className="bg-[#0F2C59] text-white sticky top-0 z-10 border-b-4 border-[#A30000] shadow-lg px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-white/10 p-2 rounded-lg text-amber-400">
+          <div className="bg-white/10 border border-white/20 p-2 rounded-xl text-amber-400">
             <GraduationCap className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-lg font-extrabold tracking-wide uppercase flex items-center gap-2">
-              EduControl
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 tracking-normal normal-case">
+            <span className="text-lg font-extrabold tracking-wide uppercase leading-tight flex items-center gap-2">
+              Cognitor
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 tracking-normal normal-case">
                 Portal Alumno
               </span>
             </span>
-            <p className="text-[10px] text-slate-300">Gestión Escolar Inteligente</p>
+            <p className="text-[10px] text-slate-400">Plataforma Educativa Inteligente</p>
           </div>
         </div>
         
@@ -253,7 +196,7 @@ export default function EstudianteDashboard() {
 
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center p-2 bg-white/10 hover:bg-red-700/25 border border-white/20 hover:border-red-500/40 text-slate-300 hover:text-red-300 rounded-lg transition-all cursor-pointer"
+            className="flex items-center justify-center p-2 bg-white/10 hover:bg-red-700/25 border border-white/20 hover:border-red-500/40 text-slate-300 hover:text-red-300 rounded-xl transition-all cursor-pointer"
             title="Cerrar Sesión"
           >
             <LogOut className="h-4 w-4" />
@@ -268,13 +211,14 @@ export default function EstudianteDashboard() {
         <div className="lg:col-span-2 space-y-6">
           
           {/* Tarjeta de Bienvenida */}
-          <div className="bg-white border border-slate-200 rounded-xl p-6 relative overflow-hidden shadow-sm">
-            <div className="absolute right-0 bottom-0 translate-x-10 translate-y-10 w-48 h-48 bg-blue-50 blur-3xl rounded-full"></div>
-            <h2 className="text-xl md:text-2xl font-extrabold text-slate-800">Bienvenido de nuevo, {userName.split(" ")[0]}</h2>
-            <p className="text-slate-500 mt-1.5 text-xs max-w-md">
-              Actualmente cuentas con <span className="text-[#0F2C59] font-bold">{tasks.length} actividades programadas</span> pendientes para esta semana académica.
+          <div className="bg-[#0F2C59] rounded-2xl p-6 relative overflow-hidden shadow-lg">
+            <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full" />
+            <div className="absolute right-16 -top-8 w-24 h-24 bg-white/5 rounded-full" />
+            <h2 className="text-xl md:text-2xl font-extrabold text-white">Bienvenido, {userName.split(" ")[0]}</h2>
+            <p className="text-slate-300 mt-1.5 text-xs max-w-md">
+              Tienes <span className="text-amber-300 font-bold">{tasks.length} actividades programadas</span> pendientes para esta semana.
             </p>
-            <div className="flex items-center gap-2 mt-4 bg-emerald-50 border border-emerald-100 w-fit px-3 py-1.5 rounded-lg text-xs text-emerald-700 font-bold">
+            <div className="flex items-center gap-2 mt-4 bg-white/10 border border-white/10 w-fit px-3 py-1.5 rounded-full text-xs text-emerald-300 font-bold">
               <CheckCircle className="h-4 w-4" /> Matrícula Habilitada
             </div>
           </div>
@@ -296,7 +240,8 @@ export default function EstudianteDashboard() {
                   return (
                     <div 
                       key={tarea.id} 
-                      className="bg-white border border-slate-200 rounded-xl p-5 hover:border-slate-300 hover:shadow-sm transition-all flex flex-col justify-between gap-4 shadow-sm"
+                      onClick={() => handleViewTask(tarea)}
+                      className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 card-hover transition-all flex flex-col justify-between gap-4 shadow-sm cursor-pointer"
                     >
                       <div className="space-y-2">
                         <div className="flex items-start justify-between gap-2">
@@ -335,7 +280,7 @@ export default function EstudianteDashboard() {
               {courses.map((curso) => (
                 <div 
                   key={curso.id} 
-                  className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between gap-4 hover:shadow-sm transition-all shadow-sm"
+                  className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between gap-4 card-hover shadow-sm"
                 >
                   <div className="space-y-1">
                     <h4 className="text-xs font-bold text-slate-850">{curso.nombre}</h4>
@@ -343,7 +288,7 @@ export default function EstudianteDashboard() {
                   </div>
                   <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100 text-[11px]">
                     <div className="bg-blue-50 text-[#0F2C59] p-1.5 rounded-lg border border-blue-100">
-                      <User className="h-3.5 w-3.5" />
+                      <GraduationCap className="h-3.5 w-3.5" />
                     </div>
                     <div>
                       <p className="text-slate-400 font-bold leading-none text-[9px] uppercase">Cátedra</p>
@@ -367,22 +312,21 @@ export default function EstudianteDashboard() {
             </h3>
             
             <div className="space-y-3">
-              {horarioHoy.map((item, index) => (
-                <div 
-                  key={index}
-                  className={`bg-slate-50 border border-slate-200 border-l-4 ${item.color} p-3 rounded-lg flex justify-between items-center`}
-                >
-                  <div>
-                    <p className="text-xs text-slate-700 font-bold">{item.curso}</p>
-                    <p className="text-[10px] text-slate-400 font-semibold mt-0.5">{item.aula}</p>
+              {syllabus.length === 0 ? (
+                <p className="text-xs text-slate-500 py-2">Sin programación en el sílabo actual.</p>
+              ) : (
+                syllabus.map((item) => (
+                  <div 
+                    key={item.id}
+                    className="bg-slate-50 border border-slate-200 border-l-4 border-l-[#0F2C59] p-3 rounded-lg flex justify-between items-center"
+                  >
+                    <div>
+                      <p className="text-xs text-slate-700 font-bold">{item.curso.nombre}</p>
+                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Semana {item.semana}: {item.tema}</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <span className="inline-flex items-center gap-1 text-[9px] text-[#0F2C59] font-bold bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-md">
-                      <Clock className="h-3 w-3" /> {item.hora}
-                    </span>
-                  </div>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </section>
 
@@ -415,95 +359,49 @@ export default function EstudianteDashboard() {
             )}
           </section>
 
-          {/* Notificaciones Recientes */}
-          <div className="bg-white border border-slate-200 p-5 rounded-xl flex items-center gap-3.5 shadow-sm">
-            <div className="bg-blue-50 text-[#0F2C59] border border-blue-100 p-2.5 rounded-xl">
-              <Bell className="h-5 w-5" />
-            </div>
-            <div>
-              <h4 className="text-xs font-bold text-slate-800">Alertas de Envío WhatsApp</h4>
-              <p className="text-[10px] text-slate-500 mt-0.5">Recibirás alertas automatizadas de vencimiento a tu número registrado.</p>
-            </div>
-          </div>
+          {/* Anuncios Recientes */}
+          <section className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-sm">
+            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
+              <Bell className="h-5 w-5 text-[#0F2C59]" /> Anuncios Recientes
+            </h3>
+            {anuncios.length === 0 ? (
+              <p className="text-xs text-slate-500 text-center py-4">No tienes anuncios recientes.</p>
+            ) : (
+              <div className="space-y-3">
+                {anuncios.map((anuncio) => (
+                  <div key={anuncio.id} className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                    <div className="flex justify-between items-start gap-2">
+                      <p className="text-[10px] font-bold text-[#0F2C59] uppercase tracking-wide">{anuncio.curso.nombre}</p>
+                      <p className="text-[9px] text-slate-500">{formatFecha(anuncio.fechaPublicacion)}</p>
+                    </div>
+                    <p className="text-xs text-slate-700 font-medium mt-1.5">{anuncio.mensaje}</p>
+                    <p className="text-[9px] text-slate-400 mt-2 text-right">Por: {anuncio.docente}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
         </div>
 
       </main>
 
-      {/* Asistente Virtual Escolar */}
-      {chatOpen ? (
-        <div className="fixed bottom-6 right-6 z-20 w-[22rem] max-w-[calc(100vw-2rem)] bg-white border border-slate-200 rounded-xl shadow-2xl flex flex-col h-[28rem] overflow-hidden">
-          <div className="bg-[#0F2C59] text-white px-4 py-3 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-amber-400" />
-              <span className="text-xs font-bold uppercase tracking-wide">Asistente Escolar</span>
-            </div>
-            <button
-              onClick={() => setChatOpen(false)}
-              className="p-1 hover:bg-white/10 rounded-lg cursor-pointer"
-              title="Cerrar"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-3 space-y-3 bg-slate-50">
-            {chatMessages.length === 0 ? (
-              <p className="text-[11px] text-slate-500 text-center py-6">
-                Pregúntame sobre tus clases, tareas, horarios o avisos. Por ejemplo: &quot;¿qué tareas tengo pendientes?&quot;
-              </p>
-            ) : (
-              chatMessages.map((msg, idx) => (
-                <div
-                  key={idx}
-                  className={`max-w-[85%] px-3 py-2 rounded-lg text-xs whitespace-pre-wrap ${
-                    msg.role === "user"
-                      ? "bg-[#0F2C59] text-white ml-auto"
-                      : "bg-white border border-slate-200 text-slate-700"
-                  }`}
-                >
-                  {msg.content}
-                </div>
-              ))
-            )}
-            {chatLoading && (
-              <div className="bg-white border border-slate-200 text-slate-400 text-xs px-3 py-2 rounded-lg flex items-center gap-2 w-fit">
-                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Pensando...
-              </div>
-            )}
-            <div ref={chatEndRef} />
-          </div>
-
-          <div className="border-t border-slate-100 p-2.5 flex items-center gap-2 shrink-0">
-            <input
-              type="text"
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSendChat();
-              }}
-              placeholder="Escribe tu pregunta..."
-              className="flex-1 bg-slate-50 border border-slate-300 focus:border-[#0F2C59] focus:ring-1 focus:ring-[#0F2C59] rounded-lg py-2 px-3 text-xs text-slate-800 placeholder-slate-400 focus:outline-none"
-            />
-            <button
-              onClick={handleSendChat}
-              disabled={chatLoading || !chatInput.trim()}
-              className="bg-[#0F2C59] hover:bg-[#143d7c] disabled:opacity-40 text-white p-2 rounded-lg cursor-pointer transition-all"
-              title="Enviar"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </div>
+      {/* Módulo 7 — Próximamente (FAB placeholder) */}
+      <div
+        className="fixed bottom-6 right-6 z-20 flex flex-col items-end gap-2"
+        title="Módulo 7 — Próximamente"
+      >
+        <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-3 py-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+          <Lock className="h-3 w-3" /> Próximamente
         </div>
-      ) : (
         <button
-          onClick={() => setChatOpen(true)}
-          className="fixed bottom-6 right-6 z-20 bg-[#0F2C59] hover:bg-[#143d7c] text-white p-4 rounded-full shadow-lg cursor-pointer transition-all flex items-center justify-center"
-          title="Abrir asistente escolar"
+          disabled
+          className="bg-slate-300 text-slate-500 p-4 rounded-full shadow-lg flex items-center justify-center cursor-not-allowed opacity-60"
+          title="Módulo 7 — Próximamente"
         >
-          <MessageCircle className="h-5 w-5" />
+          <Rocket className="h-5 w-5" />
         </button>
-      )}
+      </div>
     </div>
   );
 }

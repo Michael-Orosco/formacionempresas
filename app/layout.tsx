@@ -8,13 +8,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Portal Educativo Escolar PWA",
+  title: "Cognitor",
   description: "Plataforma escolar inteligente con horarios, sílabos y notificaciones de WhatsApp",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "ColegioPWA",
+    title: "Cognitor",
   },
   formatDetection: {
     telephone: true,

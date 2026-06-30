@@ -8,30 +8,32 @@ import type {
   Silabo,
   Tarea,
   Usuario,
-  VinculacionPadre,
+  VinculacionPadreAlumno,
+  ActividadAlumno,
 } from './model';
 
 /** Claves usadas en localStorage. Deben coincidir con las de model.ts */
 export const STORAGE_KEYS = {
-  COLEGIO: 'educontrol_colegio',
-  AULAS: 'educontrol_aulas',
-  USUARIOS: 'educontrol_usuarios',
-  CURSOS: 'educontrol_cursos',
-  MATRICULAS: 'educontrol_matriculas',
-  TAREAS: 'educontrol_tareas',
-  SILABOS: 'educontrol_silabos',
-  ANUNCIOS: 'educontrol_anuncios',
-  LOGS: 'educontrol_logs',
-  VINCULACIONES: 'educontrol_vinculaciones',
-  SESSION: 'educontrol_session',
-  SEED_VERSION: 'educontrol_seed_version',
+  COLEGIO: 'cognitor_colegio',
+  AULAS: 'cognitor_aulas',
+  USUARIOS: 'cognitor_usuarios',
+  CURSOS: 'cognitor_cursos',
+  MATRICULAS: 'cognitor_matriculas',
+  TAREAS: 'cognitor_tareas',
+  SILABOS: 'cognitor_silabos',
+  ANUNCIOS: 'cognitor_anuncios',
+  LOGS: 'cognitor_logs',
+  VINCULACIONES: 'cognitor_vinculaciones',
+  ACTIVIDAD: 'cognitor_actividad',
+  SESSION: 'cognitor_session',
+  SEED_VERSION: 'cognitor_seed_version',
 } as const;
 
 /**
  * Versión actual del seed. Incrementar este valor fuerza un reseteo
  * automático del LocalStorage en todos los clientes al próximo acceso.
  */
-export const CURRENT_SEED_VERSION = '2';
+export const CURRENT_SEED_VERSION = '3';
 
 /** IDs fijos para mantener relaciones consistentes entre entidades */
 export const SEED_IDS = {
@@ -80,7 +82,8 @@ export interface SeedDatabase {
   silabos: Silabo[];
   anuncios: Anuncio[];
   logs: LogNotificacion[];
-  vinculaciones: VinculacionPadre[];
+  vinculaciones: VinculacionPadreAlumno[];
+  actividad: ActividadAlumno[];
 }
 
 function buildTaskDates(baseDate = new Date()) {
@@ -231,11 +234,11 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
   ];
 
   const matriculas: Matricula[] = [
-    { id: 'mat-1', estudianteId: usuarios.pedrito, cursoId: cursos.math5 },
-    { id: 'mat-2', estudianteId: usuarios.pedrito, cursoId: cursos.science5 },
-    { id: 'mat-3', estudianteId: usuarios.lucia, cursoId: cursos.math5 },
-    { id: 'mat-4', estudianteId: usuarios.lucia, cursoId: cursos.science5 },
-    { id: 'mat-5', estudianteId: usuarios.carlos, cursoId: cursos.mathSec },
+    { id: 'mat-1', estudianteId: usuarios.pedrito, cursoId: cursos.math5, codigoMatricula: 'MAT-001' },
+    { id: 'mat-2', estudianteId: usuarios.pedrito, cursoId: cursos.science5, codigoMatricula: 'MAT-002' },
+    { id: 'mat-3', estudianteId: usuarios.lucia, cursoId: cursos.math5, codigoMatricula: 'MAT-003' },
+    { id: 'mat-4', estudianteId: usuarios.lucia, cursoId: cursos.science5, codigoMatricula: 'MAT-004' },
+    { id: 'mat-5', estudianteId: usuarios.carlos, cursoId: cursos.mathSec, codigoMatricula: 'MAT-005' },
   ];
 
   const tareas: Tarea[] = [
@@ -315,20 +318,44 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     },
   ];
 
-  const vinculaciones: VinculacionPadre[] = [
+  const vinculaciones: VinculacionPadreAlumno[] = [
     {
       id: 'vinc-1',
       padreId: usuarios.padre1,
-      estudianteId: usuarios.pedrito,
+      alumnoId: usuarios.pedrito,
       fechaVinculacion: dates.hoy.toISOString(),
     },
     {
       id: 'vinc-2',
       padreId: usuarios.padre2,
-      estudianteId: usuarios.lucia,
+      alumnoId: usuarios.lucia,
       fechaVinculacion: dates.hoy.toISOString(),
     },
   ];
+
+  const actividad: ActividadAlumno[] = [];
+  for(let i = 0; i < 5; i++) {
+    actividad.push({
+      id: `act-log-${i}`,
+      alumnoId: usuarios.pedrito,
+      tipoEvento: 'LOGIN',
+      fecha: new Date(dates.hoy.getTime() - i * 86400000).toISOString(),
+    });
+    actividad.push({
+      id: `act-tv-${i}`,
+      alumnoId: usuarios.pedrito,
+      cursoId: cursos.math5,
+      tipoEvento: 'TAREA_VISTA',
+      fecha: new Date(dates.hoy.getTime() - i * 86400000).toISOString(),
+    });
+    actividad.push({
+      id: `act-tp-${i}`,
+      alumnoId: usuarios.pedrito,
+      cursoId: cursos.science5,
+      tipoEvento: 'TAREA_PUBLICADA',
+      fecha: new Date(dates.hoy.getTime() - i * 86400000).toISOString(),
+    });
+  }
 
   return {
     colegio,
@@ -341,6 +368,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     anuncios,
     logs,
     vinculaciones,
+    actividad,
   };
 }
 
@@ -358,6 +386,7 @@ export function applySeedToLocalStorage(data: SeedDatabase): void {
   localStorage.setItem(STORAGE_KEYS.ANUNCIOS, JSON.stringify(data.anuncios));
   localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(data.logs));
   localStorage.setItem(STORAGE_KEYS.VINCULACIONES, JSON.stringify(data.vinculaciones));
+  localStorage.setItem(STORAGE_KEYS.ACTIVIDAD, JSON.stringify(data.actividad));
   // Marca la versión del seed para detectar migraciones futuras
   localStorage.setItem(STORAGE_KEYS.SEED_VERSION, CURRENT_SEED_VERSION);
 }

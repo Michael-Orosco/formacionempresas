@@ -1,4 +1,4 @@
-import { Model, Usuario, Tarea, Anuncio, LogNotificacion, VinculacionPadre } from './model';
+import { Model, Usuario, Tarea, Anuncio, LogNotificacion, VinculacionPadreAlumno } from './model';
 
 export const Controller = {
   // Inicialización segura
@@ -50,6 +50,7 @@ export const Controller = {
 
     const totalEstudiantes = users.filter(u => u.rol === 'ESTUDIANTE').length;
     const totalDocentes = users.filter(u => u.rol === 'DOCENTE').length;
+    const totalPadres = users.filter(u => u.rol === 'PADRE').length;
     const totalCursos = courses.length;
     
     // Tareas creadas esta semana (simulación)
@@ -72,7 +73,8 @@ export const Controller = {
       totalTareas,
       tareasEntregadas,
       notificacionesExito,
-      notificacionesFallo
+      notificacionesFallo,
+      totalPadres
     };
 
     // Retornar listado de usuarios filtrando admin para seguridad
@@ -87,7 +89,7 @@ export const Controller = {
   },
 
   // ADMINISTRADOR: Crear un nuevo usuario
-  createUser(data: { email: string; passwordHash: string; nombre: string; telefono: string; rol: 'DOCENTE' | 'ESTUDIANTE'; gradoSeccionId?: string }) {
+  createUser(data: { email: string; passwordHash: string; nombre: string; telefono: string; rol: 'DOCENTE' | 'ESTUDIANTE' | 'PADRE'; gradoSeccionId?: string; alumnoEmail?: string }) {
     this.init();
     const users = Model.getUsuarios();
     
@@ -126,6 +128,24 @@ export const Controller = {
       Model.setMatriculas(matriculas);
     }
 
+    // Si es padre y proveyó email del alumno, creamos la vinculación
+    if (data.rol === 'PADRE' && data.alumnoEmail) {
+      const student = users.find(u => u.rol === 'ESTUDIANTE' && u.email.toLowerCase() === data.alumnoEmail!.toLowerCase());
+      if (student) {
+        const vinculaciones = Model.getVinculaciones();
+        vinculaciones.push({
+          id: 'vinc_' + Math.random().toString(36).substring(2, 11),
+          padreId: newUser.id,
+          alumnoId: student.id,
+          fechaVinculacion: new Date().toISOString()
+        });
+        Model.setVinculaciones(vinculaciones);
+      } else {
+        // En producción podríamos lanzar error, aquí solo lo ignoramos si no encuentra el estudiante
+        console.warn('No se encontró el estudiante para vincular con el padre.');
+      }
+    }
+
     return newUser;
   },
 
@@ -150,7 +170,7 @@ export const Controller = {
     // Limpiar vinculaciones huérfanas
     let vinculaciones = Model.getVinculaciones();
     vinculaciones = vinculaciones.filter(
-      v => v.estudianteId !== id && v.padreId !== id
+      v => v.alumnoId !== id && v.padreId !== id
     );
     Model.setVinculaciones(vinculaciones);
 
@@ -168,6 +188,9 @@ export const Controller = {
     
     // Enriquecer tareas para la vista
     const aulas = Model.getAulas();
+    const matriculas = Model.getMatriculas();
+    const silabos = Model.getSilabos().filter(s => courseIds.includes(s.cursoId));
+
     const enrichedTasks = tasks.map(t => {
       const curso = courses.find(c => c.id === t.cursoId)!;
       const aula = aulas.find(a => a.id === curso.gradoSeccionId)!;
@@ -184,7 +207,8 @@ export const Controller = {
             grado: aula.grado,
             seccion: aula.seccion
           }
-        }
+        },
+        alumnosPendientes: matriculas.filter(m => m.cursoId === t.cursoId).length
       };
     });
 
@@ -200,8 +224,31 @@ export const Controller = {
 
     return {
       cursos: coursesList,
-      tareas: enrichedTasks
+      tareas: enrichedTasks,
+      silabos: silabos
     };
+  },
+
+  // DOCENTE: Crear entrada de sílabo
+  createSilaboEntry(data: { semana: number; tema: string; cursoId: string }) {
+    this.init();
+    const silabos = Model.getSilabos();
+    const newEntry = {
+      id: 'sil_' + Math.random().toString(36).substring(2, 11),
+      semana: data.semana,
+      tema: data.tema,
+      cursoId: data.cursoId
+    };
+    silabos.push(newEntry);
+    Model.setSilabos(silabos);
+    return newEntry;
+  },
+  
+  deleteSilaboEntry(id: string) {
+    this.init();
+    let silabos = Model.getSilabos();
+    silabos = silabos.filter(s => s.id !== id);
+    Model.setSilabos(silabos);
   },
 
   // DOCENTE: Crear nueva tarea escolar
@@ -222,19 +269,32 @@ export const Controller = {
     tasks.push(newTask);
     Model.setTareas(tasks);
 
-    // Simular alertas de envío de WhatsApp en los logs inmediatamente
+    // Simular alertas de envío de WhatsApp en los logs inmediatamente y evento TAREA_PUBLICADA
     const matriculas = Model.getMatriculas().filter(m => m.cursoId === data.cursoId);
     const logs = Model.getLogs();
+    const actividad = Model.getActividad();
+    const nowIso = new Date().toISOString();
+
     matriculas.forEach(m => {
       logs.push({
         id: 'log_' + Math.random().toString(36).substring(2, 11),
         tareaId: newTaskId,
         estudianteId: m.estudianteId,
-        fechaEnvio: new Date().toISOString(),
+        fechaEnvio: nowIso,
         estado: 'EXITO' // Simulación exitosa
+      });
+
+      // TAREA_PUBLICADA para modulo IA
+      actividad.push({
+        id: 'act_' + Math.random().toString(36).substring(2, 11),
+        alumnoId: m.estudianteId,
+        cursoId: data.cursoId,
+        tipoEvento: 'TAREA_PUBLICADA',
+        fecha: nowIso
       });
     });
     Model.setLogs(logs);
+    Model.setActividad(actividad);
 
     return newTask;
   },
@@ -389,7 +449,7 @@ export const Controller = {
     const aulas = Model.getAulas();
 
     return vinculaciones.map(v => {
-      const estudiante = usuarios.find(u => u.id === v.estudianteId)!;
+      const estudiante = usuarios.find(u => u.id === v.alumnoId)!;
       const aula = aulas.find(a => a.id === estudiante.gradoSeccionId);
       return {
         vinculacionId: v.id,
@@ -425,17 +485,17 @@ export const Controller = {
     }
 
     const vinculaciones = Model.getVinculaciones();
-    const yaVinculado = vinculaciones.some(
-      v => v.padreId === padreId && v.estudianteId === estudiante.id
+    const yaVinculado = vinculaciones.find(
+      v => v.padreId === padreId && v.alumnoId === estudiante.id
     );
     if (yaVinculado) {
       throw new Error(`${estudiante.nombre} ya está vinculado a tu cuenta.`);
     }
 
-    const nuevaVinculacion: VinculacionPadre = {
+    const nuevaVinculacion: VinculacionPadreAlumno = {
       id: 'vinc_' + Math.random().toString(36).substring(2, 11),
       padreId,
-      estudianteId: estudiante.id,
+      alumnoId: estudiante.id,
       fechaVinculacion: new Date().toISOString(),
     };
 
@@ -460,14 +520,14 @@ export const Controller = {
     this.init();
     let vinculaciones = Model.getVinculaciones();
     const existe = vinculaciones.some(
-      v => v.padreId === padreId && v.estudianteId === estudianteId
+      v => v.padreId === padreId && v.alumnoId === estudianteId
     );
     if (!existe) {
       throw new Error('No existe una vinculación activa con este estudiante.');
     }
 
     vinculaciones = vinculaciones.filter(
-      v => !(v.padreId === padreId && v.estudianteId === estudianteId)
+      v => !(v.padreId === padreId && v.alumnoId === estudianteId)
     );
     Model.setVinculaciones(vinculaciones);
     return true;
@@ -601,5 +661,19 @@ export const Controller = {
       anuncios,
       logs,
     };
+  },
+
+  // ESTUDIANTE: Registrar actividad
+  registrarActividad(alumnoId: string, cursoId: string | null, tipoEvento: string) {
+    this.init();
+    const actividad = Model.getActividad();
+    actividad.push({
+      id: 'act_' + Math.random().toString(36).substring(2, 11),
+      alumnoId,
+      cursoId: cursoId || undefined,
+      tipoEvento,
+      fecha: new Date().toISOString()
+    });
+    Model.setActividad(actividad);
   }
 };

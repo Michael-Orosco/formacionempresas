@@ -200,28 +200,34 @@ export default function PadreDashboard() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 min-h-screen">
-        <Loader2 className="h-10 w-10 text-[#0F2C59] animate-spin mb-4" />
-        <p className="text-slate-600 text-sm font-semibold">Cargando portal de padres...</p>
+      <div className="flex-1 flex flex-col items-center justify-center bg-slate-100 min-h-screen">
+        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
+          <Loader2 className="h-10 w-10 text-[#0F2C59] animate-spin" />
+          <p className="text-slate-600 text-sm font-semibold">Cargando portal de padres...</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-50 min-h-screen text-slate-800">
-      <header className="bg-[#0F2C59] text-white sticky top-0 z-10 border-b-4 border-[#A30000] shadow-md px-6 py-4 flex items-center justify-between">
+    <div className="flex-1 flex flex-col bg-slate-100 min-h-screen text-slate-800">
+      <header className="bg-[#0F2C59] text-white sticky top-0 z-10 border-b-4 border-[#A30000] shadow-lg px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-white/10 p-2 rounded-lg text-amber-400">
+          <div className="bg-white/10 border border-white/20 p-2 rounded-xl text-amber-400">
             <GraduationCap className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-lg font-extrabold tracking-wide uppercase flex items-center gap-2">
-              EduControl
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-violet-500/20 text-violet-200 border border-violet-500/30 tracking-normal normal-case">
+            <span className="text-lg font-extrabold tracking-wide uppercase leading-tight flex items-center gap-2">
+              Cognitor
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-200 border border-violet-500/30 tracking-normal normal-case">
                 Portal Padres
               </span>
             </span>
-            <p className="text-[10px] text-slate-300">Seguimiento académico de tus hijos</p>
+            <p className="text-[10px] text-slate-400">
+              {hijoSeleccionado !== "todos" && hijos.find(h => h.id === hijoSeleccionado)
+                ? `Viendo perfil de: ${hijos.find(h => h.id === hijoSeleccionado)?.nombre}`
+                : "Seguimiento académico de tus hijos"}
+            </p>
           </div>
         </div>
 
@@ -232,7 +238,7 @@ export default function PadreDashboard() {
           </div>
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center p-2 bg-white/10 hover:bg-red-700/25 border border-white/20 hover:border-red-500/40 text-slate-300 hover:text-red-300 rounded-lg transition-all cursor-pointer"
+            className="flex items-center justify-center p-2 bg-white/10 hover:bg-red-700/25 border border-white/20 hover:border-red-500/40 text-slate-300 hover:text-red-300 rounded-xl transition-all cursor-pointer"
             title="Cerrar Sesión"
           >
             <LogOut className="h-4 w-4" />
@@ -241,36 +247,54 @@ export default function PadreDashboard() {
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+
         {/* KPIs */}
         {resumen && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Hijos vinculados</p>
-              <p className="text-2xl font-extrabold text-slate-800 mt-1">{resumen.totalHijos}</p>
-              <Users className="h-4 w-4 text-violet-600 mt-2" />
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover flex items-center gap-4">
+              <div className="p-2.5 bg-violet-50 text-violet-700 border border-violet-100 rounded-xl shrink-0">
+                <Users className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Hijos</p>
+                <p className="text-2xl font-extrabold text-slate-900 mt-0.5">{resumen.totalHijos}</p>
+              </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Tareas pendientes</p>
-              <p className="text-2xl font-extrabold text-slate-800 mt-1">{resumen.tareasPendientes}</p>
-              <BookOpen className="h-4 w-4 text-[#0F2C59] mt-2" />
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover flex items-center gap-4">
+              <div className="p-2.5 bg-blue-50 text-[#0F2C59] border border-blue-100 rounded-xl shrink-0">
+                <BookOpen className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Pendientes</p>
+                <p className="text-2xl font-extrabold text-slate-900 mt-0.5">{resumen.tareasPendientes}</p>
+              </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Urgentes (&lt; 24h)</p>
-              <p className="text-2xl font-extrabold text-red-600 mt-1">{resumen.tareasUrgentes}</p>
-              <AlertTriangle className="h-4 w-4 text-red-500 mt-2" />
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover flex items-center gap-4">
+              <div className="p-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl shrink-0">
+                <AlertTriangle className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Urgentes</p>
+                <p className="text-2xl font-extrabold text-red-600 mt-0.5">{resumen.tareasUrgentes}</p>
+              </div>
             </div>
-            <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">WhatsApp enviados</p>
-              <p className="text-2xl font-extrabold text-emerald-600 mt-1">{resumen.notificacionesExito}</p>
-              <Bell className="h-4 w-4 text-emerald-500 mt-2" />
+            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover flex items-center gap-4">
+              <div className="p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl shrink-0">
+                <Bell className="h-4 w-4" />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">WhatsApp</p>
+                <p className="text-2xl font-extrabold text-emerald-700 mt-0.5">{resumen.notificacionesExito}</p>
+              </div>
             </div>
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Panel de vinculación */}
-          <div className="space-y-6">
-            <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+          {/* Panel lateral */}
+          <div className="space-y-5">
+
+            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
                 <Link2 className="h-5 w-5 text-violet-600" /> Vincular hijo/a
               </h3>
@@ -315,7 +339,7 @@ export default function PadreDashboard() {
             </section>
 
             {/* Hijos vinculados */}
-            <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
+            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
                 <Users className="h-5 w-5 text-[#0F2C59]" /> Mis hijos ({hijos.length})
               </h3>
@@ -368,7 +392,7 @@ export default function PadreDashboard() {
             </section>
 
             {/* Logs WhatsApp */}
-            <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-3">
+            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-3">
               <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
                 <Bell className="h-5 w-5 text-[#0F2C59]" /> Alertas WhatsApp
               </h3>
@@ -420,7 +444,7 @@ export default function PadreDashboard() {
                     return (
                       <div
                         key={`${tarea.id}-${tarea.estudiante.id}`}
-                        className="bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between gap-4 shadow-sm hover:shadow-md transition-all"
+                        className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-sm card-hover"
                       >
                         <div className="space-y-2">
                           <div className="flex items-start justify-between gap-2 flex-wrap">
@@ -475,7 +499,7 @@ export default function PadreDashboard() {
                   {anuncios.map((anuncio) => (
                     <div
                       key={anuncio.id}
-                      className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm"
+                      className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-[#0F2C59] border border-blue-100">
@@ -501,7 +525,7 @@ export default function PadreDashboard() {
                   {cursos.map((curso) => (
                     <div
                       key={`${curso.id}-${curso.estudiante.id}`}
-                      className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm"
+                      className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover"
                     >
                       <p className="text-[10px] font-bold text-violet-600 uppercase">
                         {curso.estudiante.nombre.split(" ")[0]}
@@ -536,7 +560,24 @@ export default function PadreDashboard() {
             </div>
           </div>
         </div>
+
       </main>
+
+      {/* Módulo 7 — Próximamente */}
+      <div className="fixed bottom-6 right-6 z-20 flex flex-col items-end gap-2">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-3 py-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> Módulo 7 — Próximamente
+        </div>
+        <button
+          disabled
+          id="padre-mod7-btn"
+          className="bg-slate-300 text-slate-500 p-4 rounded-full shadow-lg flex items-center justify-center cursor-not-allowed opacity-60"
+          title="Módulo 7 — Próximamente"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+        </button>
+      </div>
+
     </div>
   );
 }
