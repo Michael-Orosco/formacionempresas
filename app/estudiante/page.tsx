@@ -386,22 +386,7 @@ export default function EstudianteDashboard() {
 
       </main>
 
-      {/* Módulo 7 — Próximamente (FAB placeholder) */}
-      <div
-        className="fixed bottom-6 right-6 z-20 flex flex-col items-end gap-2"
-        title="Módulo 7 — Próximamente"
-      >
-        <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-3 py-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-          <Lock className="h-3 w-3" /> Próximamente
-        </div>
-        <button
-          disabled
-          className="bg-slate-300 text-slate-500 p-4 rounded-full shadow-lg flex items-center justify-center cursor-not-allowed opacity-60"
-          title="Módulo 7 — Próximamente"
-        >
-          <Rocket className="h-5 w-5" />
-        </button>
-      </div>
+
     </div>
   );
 }
