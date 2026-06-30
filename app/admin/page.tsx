@@ -20,7 +20,7 @@ import {
   CheckCircle
 } from "lucide-react";
 import { Controller } from "@/lib/mvc/controller";
-
+import { calcularRiesgo } from "@/lib/ia/prediccion";
 interface UserRecord {
   id: string;
   email: string;
@@ -155,6 +155,8 @@ export default function AdminDashboard() {
       </div>
     );
   }
+
+  const alumnosRiesgoAlto = users.filter(u => u.rol === 'ESTUDIANTE' && calcularRiesgo(u.id) === 'ALTO');
 
   return (
     <div className="flex-1 flex flex-col bg-slate-100 min-h-screen text-slate-800">
@@ -503,29 +505,32 @@ export default function AdminDashboard() {
             )}
           </div>
 
-          {/* ─── Módulo 7 — Próximamente ─── */}
-          <div className="lg:col-span-3 bg-gradient-to-br from-slate-800 to-[#0F2C59] rounded-2xl p-6 shadow-sm border border-white/10 relative overflow-hidden">
-            <div className="absolute -right-10 -bottom-10 w-36 h-36 bg-white/5 rounded-full" />
-            <div className="absolute right-24 -top-6 w-20 h-20 bg-white/5 rounded-full" />
-            <div className="flex items-start justify-between relative z-10">
-              <div>
-                <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-amber-400 bg-amber-400/10 border border-amber-400/20 px-2.5 py-1 rounded-full mb-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                  En Desarrollo
-                </span>
-                <h3 className="text-white font-extrabold text-lg leading-tight">Módulo 7</h3>
-                <p className="text-slate-400 text-xs mt-1 max-w-sm">Nuevas funcionalidades avanzadas para la plataforma educativa. Disponible pronto.</p>
+          {/* ─── Módulo 7 — Alumnos en Seguimiento ─── */}
+          <div className="lg:col-span-3 bg-white border border-red-200 rounded-2xl p-6 shadow-sm space-y-4">
+            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2 pb-3 border-b border-slate-100">
+              <TrendingUp className="h-5 w-5 text-red-600" /> Alumnos en Seguimiento (Riesgo Alto)
+            </h3>
+
+            {alumnosRiesgoAlto.length === 0 ? (
+              <p className="text-xs text-slate-500 py-6 text-center">No hay alumnos en riesgo académico detectados actualmente.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {alumnosRiesgoAlto.map((alumno) => (
+                  <div key={alumno.id} className="bg-red-50 border border-red-100 rounded-xl p-4 flex flex-col justify-between gap-3 shadow-sm">
+                    <div>
+                      <span className="inline-flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-red-600 bg-red-100 px-2 py-0.5 rounded mb-2">
+                        <AlertTriangle className="h-3 w-3" /> Riesgo Alto
+                      </span>
+                      <h4 className="text-sm font-bold text-slate-800">{alumno.nombre}</h4>
+                      <p className="text-xs text-slate-600 mt-0.5">{alumno.email}</p>
+                    </div>
+                    <div className="text-[10px] text-slate-500 font-semibold border-t border-red-200/50 pt-2">
+                      Falta de interacción y visualización de tareas reciente detectada por IA.
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex gap-2">
-                <button
-                  disabled
-                  id="admin-mod7-btn"
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 border border-white/20 text-slate-400 rounded-xl text-xs font-bold cursor-not-allowed opacity-60"
-                >
-                  Próximamente
-                </button>
-              </div>
-            </div>
+            )}
           </div>
 
         </div>

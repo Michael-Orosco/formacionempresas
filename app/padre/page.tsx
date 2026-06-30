@@ -19,8 +19,10 @@ import {
   Award,
   ChevronRight,
   HeartHandshake,
+  Sparkles,
 } from "lucide-react";
 import { Controller } from "@/lib/mvc/controller";
+import { predecirNota, PrediccionResponse } from "@/lib/ia/prediccion";
 
 interface Hijo {
   vinculacionId: string;
@@ -101,6 +103,15 @@ export default function PadreDashboard() {
   const [vinculoLoading, setVinculoLoading] = useState(false);
   const [vinculoMsg, setVinculoMsg] = useState("");
   const [vinculoError, setVinculoError] = useState("");
+
+  const [iaData, setIaData] = useState<Record<string, PrediccionResponse | "loading" | null>>({});
+
+  const handlePredict = async (alumnoId: string, cursoId: string) => {
+    const key = `${alumnoId}-${cursoId}`;
+    setIaData(prev => ({ ...prev, [key]: "loading" }));
+    const result = await predecirNota(alumnoId, cursoId);
+    setIaData(prev => ({ ...prev, [key]: result }));
+  };
 
   const fetchDashboard = useCallback(
     (id: string, filtro?: string) => {
@@ -558,25 +569,71 @@ export default function PadreDashboard() {
                 )}
               </section>
             </div>
+
+            {/* Módulo 7 — Alerta IA */}
+            <section className="bg-gradient-to-br from-[#0F2C59] to-slate-800 border border-[#0F2C59] rounded-xl p-6 shadow-md space-y-4 relative overflow-hidden">
+              <div className="absolute -right-10 -bottom-10 w-36 h-36 bg-white/5 rounded-full" />
+              <h3 className="text-sm font-extrabold text-white flex items-center gap-2 pb-2 border-b border-white/10 relative z-10">
+                <Sparkles className="h-5 w-5 text-amber-400" /> Alerta IA: Predicción de Desempeño
+              </h3>
+              
+              {cursos.length === 0 ? (
+                <p className="text-xs text-slate-300 py-4 relative z-10">No hay asignaturas disponibles para análisis.</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
+                  {cursos.map((curso) => {
+                    const key = `${curso.estudiante.id}-${curso.id}`;
+                    const prediccion = iaData[key];
+
+                    return (
+                      <div key={key} className="bg-white/10 border border-white/20 rounded-xl p-4 flex flex-col justify-between gap-3">
+                        <div>
+                          <p className="text-[10px] font-bold text-amber-300 uppercase">{curso.estudiante.nombre.split(" ")[0]}</p>
+                          <h4 className="text-xs font-bold text-white mt-0.5">{curso.nombre}</h4>
+                        </div>
+                        
+                        {!prediccion ? (
+                          <button
+                            onClick={() => handlePredict(curso.estudiante.id, curso.id)}
+                            className="mt-2 text-[10px] font-bold bg-white text-[#0F2C59] hover:bg-slate-100 px-3 py-1.5 rounded-lg transition-all w-full flex items-center justify-center gap-1.5"
+                          >
+                            <Sparkles className="h-3 w-3" /> Generar Análisis IA
+                          </button>
+                        ) : prediccion === "loading" ? (
+                          <div className="flex items-center justify-center gap-2 text-xs text-amber-200 py-1.5">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Analizando actividad...
+                          </div>
+                        ) : (
+                          <div className="bg-white rounded-lg p-3 space-y-2 text-slate-800">
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase text-slate-500">Nota Estimada</span>
+                              <span className="text-sm font-extrabold text-[#0F2C59]">{prediccion.nota_estimada} / 20</span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-[10px] font-bold uppercase text-slate-500">Nivel de Riesgo</span>
+                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
+                                prediccion.nivel_riesgo === 'ALTO' ? 'bg-red-100 text-red-700' :
+                                prediccion.nivel_riesgo === 'MEDIO' ? 'bg-amber-100 text-amber-700' :
+                                'bg-emerald-100 text-emerald-700'
+                              }`}>
+                                {prediccion.nivel_riesgo}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-slate-600 font-medium leading-tight pt-1 border-t border-slate-100">
+                              {prediccion.mensaje}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
           </div>
         </div>
 
       </main>
-
-      {/* Módulo 7 — Próximamente */}
-      <div className="fixed bottom-6 right-6 z-20 flex flex-col items-end gap-2">
-        <div className="bg-white border border-slate-200 rounded-xl shadow-lg px-3 py-1.5 flex items-center gap-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wide">
-          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" /> Módulo 7 — Próximamente
-        </div>
-        <button
-          disabled
-          id="padre-mod7-btn"
-          className="bg-slate-300 text-slate-500 p-4 rounded-full shadow-lg flex items-center justify-center cursor-not-allowed opacity-60"
-          title="Módulo 7 — Próximamente"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
-        </button>
-      </div>
 
     </div>
   );
