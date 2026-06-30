@@ -3,6 +3,7 @@ export interface Colegio {
   nombre: string;
   direccion: string;
   licenciaActiva: boolean;
+  tier?: 'BASICO' | 'ESTANDAR' | 'PREMIUM';
 }
 
 export interface Usuario {
@@ -15,6 +16,7 @@ export interface Usuario {
   colegioId: string;
   gradoSeccionId?: string; // Para estudiantes
   codigoVinculo?: string; // Código único para que padres vinculen al estudiante
+  esPremium?: boolean; // Para padres
 }
 
 export interface VinculacionPadreAlumno {
@@ -84,6 +86,13 @@ export interface LogNotificacion {
   estudianteId: string;
   fechaEnvio: string;
   estado: 'EXITO' | 'FALLO';
+}
+
+export interface AcademiaIntegrada {
+  id: string;
+  nombre: string;
+  montoMensual: number;
+  activa: boolean;
 }
 
 import {
@@ -195,6 +204,12 @@ export const Model = {
   },
   setActividad(actividades: ActividadAlumno[]): void {
     setItem((KEYS as any).ACTIVIDAD, actividades);
+  },
+  getAcademias(): AcademiaIntegrada[] {
+    return getItem<AcademiaIntegrada[]>((KEYS as any).ACADEMIAS) || [];
+  },
+  setAcademias(academias: AcademiaIntegrada[]): void {
+    setItem((KEYS as any).ACADEMIAS, academias);
   },
   getCurrentUser(): Usuario | null {
     return getItem<Usuario>(KEYS.SESSION);

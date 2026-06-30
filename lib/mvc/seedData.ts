@@ -10,6 +10,7 @@ import type {
   Usuario,
   VinculacionPadreAlumno,
   ActividadAlumno,
+  AcademiaIntegrada,
 } from './model';
 
 /** Claves usadas en localStorage. Deben coincidir con las de model.ts */
@@ -25,6 +26,7 @@ export const STORAGE_KEYS = {
   LOGS: 'cognitor_logs',
   VINCULACIONES: 'cognitor_vinculaciones',
   ACTIVIDAD: 'cognitor_actividad',
+  ACADEMIAS: 'cognitor_academias',
   SESSION: 'cognitor_session',
   SEED_VERSION: 'cognitor_seed_version',
 } as const;
@@ -84,6 +86,7 @@ export interface SeedDatabase {
   logs: LogNotificacion[];
   vinculaciones: VinculacionPadreAlumno[];
   actividad: ActividadAlumno[];
+  academias: AcademiaIntegrada[];
 }
 
 function buildTaskDates(baseDate = new Date()) {
@@ -357,6 +360,11 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     });
   }
 
+  const academias: AcademiaIntegrada[] = [
+    { id: 'aca-1', nombre: 'Academia Pamer', montoMensual: 400, activa: true },
+    { id: 'aca-2', nombre: 'Academia Trilce', montoMensual: 500, activa: true },
+  ];
+
   return {
     colegio,
     aulas: aulasData,
@@ -369,6 +377,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     logs,
     vinculaciones,
     actividad,
+    academias,
   };
 }
 
@@ -387,6 +396,7 @@ export function applySeedToLocalStorage(data: SeedDatabase): void {
   localStorage.setItem(STORAGE_KEYS.LOGS, JSON.stringify(data.logs));
   localStorage.setItem(STORAGE_KEYS.VINCULACIONES, JSON.stringify(data.vinculaciones));
   localStorage.setItem(STORAGE_KEYS.ACTIVIDAD, JSON.stringify(data.actividad));
+  localStorage.setItem(STORAGE_KEYS.ACADEMIAS, JSON.stringify(data.academias));
   // Marca la versión del seed para detectar migraciones futuras
   localStorage.setItem(STORAGE_KEYS.SEED_VERSION, CURRENT_SEED_VERSION);
 }

@@ -66,6 +66,10 @@ export default function EstudianteDashboard() {
   const [tasks, setTasks] = useState<Tarea[]>([]);
   const [syllabus, setSyllabus] = useState<Silabo[]>([]);
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
+  const [esSenior, setEsSenior] = useState(false);
+  const [academias, setAcademias] = useState<{id: string, nombre: string}[]>([]);
+
+  const [selectedTask, setSelectedTask] = useState<Tarea | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [userName, setUserName] = useState("Estudiante");
@@ -89,6 +93,8 @@ export default function EstudianteDashboard() {
         setTasks(data.tareas || []);
         setSyllabus(data.silabos || []);
         setAnuncios(data.anuncios || []);
+        setEsSenior(data.esSenior || false);
+        setAcademias(data.academias || []);
 
         Controller.registrarActividad(userId, null, 'LOGIN');
       } catch (err: unknown) {
@@ -381,6 +387,28 @@ export default function EstudianteDashboard() {
               </div>
             )}
           </section>
+
+          {/* Módulo 8: Monetización - Pre-Universidad */}
+          {esSenior && academias.length > 0 && (
+            <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 shadow-sm space-y-3 mt-6">
+              <h3 className="text-sm font-bold text-blue-900 flex items-center gap-2 pb-2 border-b border-blue-200/50">
+                <GraduationCap className="h-5 w-5 text-blue-600" /> Pre-Universidad
+              </h3>
+              <p className="text-xs text-blue-800">
+                ¡Estás a un paso de la universidad! Prepárate con nuestros convenios exclusivos:
+              </p>
+              <div className="grid gap-3">
+                {academias.map(acad => (
+                  <div key={acad.id} className="bg-white border border-blue-100 rounded-lg p-3 flex justify-between items-center shadow-sm">
+                    <span className="text-xs font-bold text-slate-800">{acad.nombre}</span>
+                    <button className="text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                      Ver Información
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
         </div>
 

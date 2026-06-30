@@ -64,6 +64,15 @@ export const Controller = {
     const notificacionesExito = logs.filter(l => l.estado === 'EXITO').length;
     const notificacionesFallo = logs.filter(l => l.estado === 'FALLO').length;
 
+    // Lógica Módulo 8: Monetización
+    const tier = totalEstudiantes <= 300 ? 'BASICO' : totalEstudiantes <= 800 ? 'ESTANDAR' : 'PREMIUM';
+    const precioTier = tier === 'BASICO' ? 400 : tier === 'ESTANDAR' ? 600 : 900;
+    
+    const padresPremium = users.filter(u => u.rol === 'PADRE' && u.esPremium).length;
+    const academias = Model.getAcademias().filter(a => a.activa);
+    const ingresoAcademias = academias.reduce((sum, a) => sum + a.montoMensual, 0);
+    const ingresosEstimados = precioTier + (padresPremium * 15) + ingresoAcademias;
+
     const kpis = {
       totalEstudiantes,
       totalDocentes,
@@ -74,7 +83,13 @@ export const Controller = {
       tareasEntregadas,
       notificacionesExito,
       notificacionesFallo,
-      totalPadres
+      totalPadres,
+      tier,
+      precioTier,
+      padresPremium,
+      ingresoAcademias,
+      ingresosEstimados,
+      academias
     };
 
     // Retornar listado de usuarios filtrando admin para seguridad
@@ -96,6 +111,15 @@ export const Controller = {
     // Validar si el email ya existe
     if (users.some(u => u.email.toLowerCase() === data.email.toLowerCase())) {
       throw new Error('El correo electrónico ya está registrado.');
+    }
+
+    // Validar estudiante antes de crear al padre
+    let studentToLink = null;
+    if (data.rol === 'PADRE' && data.alumnoEmail) {
+      studentToLink = users.find(u => u.rol === 'ESTUDIANTE' && u.email.toLowerCase() === data.alumnoEmail!.toLowerCase());
+      if (!studentToLink) {
+        throw new Error('No se encontró un estudiante con ese correo electrónico. Verifica el email e intenta de nuevo.');
+      }
     }
 
     const newUser: Usuario = {
@@ -129,21 +153,15 @@ export const Controller = {
     }
 
     // Si es padre y proveyó email del alumno, creamos la vinculación
-    if (data.rol === 'PADRE' && data.alumnoEmail) {
-      const student = users.find(u => u.rol === 'ESTUDIANTE' && u.email.toLowerCase() === data.alumnoEmail!.toLowerCase());
-      if (student) {
-        const vinculaciones = Model.getVinculaciones();
-        vinculaciones.push({
-          id: 'vinc_' + Math.random().toString(36).substring(2, 11),
-          padreId: newUser.id,
-          alumnoId: student.id,
-          fechaVinculacion: new Date().toISOString()
-        });
-        Model.setVinculaciones(vinculaciones);
-      } else {
-        // En producción podríamos lanzar error, aquí solo lo ignoramos si no encuentra el estudiante
-        console.warn('No se encontró el estudiante para vincular con el padre.');
-      }
+    if (data.rol === 'PADRE' && studentToLink) {
+      const vinculaciones = Model.getVinculaciones();
+      vinculaciones.push({
+        id: 'vinc_' + Math.random().toString(36).substring(2, 11),
+        padreId: newUser.id,
+        alumnoId: studentToLink.id,
+        fechaVinculacion: new Date().toISOString()
+      });
+      Model.setVinculaciones(vinculaciones);
     }
 
     return newUser;
@@ -433,11 +451,24 @@ export const Controller = {
       })
       .sort((a, b) => new Date(b.fechaPublicacion).getTime() - new Date(a.fechaPublicacion).getTime());
 
+    // Obtener academias si está en 4to o 5to
+    const student = users.find(u => u.id === studentId);
+    let esSenior = false;
+    if (student?.gradoSeccionId) {
+      const aula = Model.getAulas().find(a => a.id === student?.gradoSeccionId);
+      if (aula && (aula.grado.includes('4') || aula.grado.includes('5') || aula.grado.toLowerCase().includes('cuarto') || aula.grado.toLowerCase().includes('quinto'))) {
+        esSenior = true;
+      }
+    }
+    const academias = Model.getAcademias().filter(a => a.activa);
+
     return {
       matriculas: studentCourses,
       tareas: studentTasks,
       silabos: studentSyllabus,
-      anuncios: studentAnuncios
+      anuncios: studentAnuncios,
+      esSenior,
+      academias
     };
   },
 
@@ -675,5 +706,22 @@ export const Controller = {
       fecha: new Date().toISOString()
     });
     Model.setActividad(actividad);
+  },
+
+  // PADRE: Activar plan premium
+  activarPremiumPadre(padreId: string) {
+    this.init();
+    const users = Model.getUsuarios();
+    const padre = users.find(u => u.id === padreId && u.rol === 'PADRE');
+    if (!padre) throw new Error('Padre no encontrado.');
+    
+    padre.esPremium = true;
+    Model.setUsuarios(users);
+    
+    const current = Model.getCurrentUser();
+    if (current && current.id === padreId) {
+      Model.setCurrentUser(padre);
+    }
+    return true;
   }
 };

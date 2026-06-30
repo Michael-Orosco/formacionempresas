@@ -104,7 +104,13 @@ export default function PadreDashboard() {
   const [vinculoMsg, setVinculoMsg] = useState("");
   const [vinculoError, setVinculoError] = useState("");
 
+  const [isPremium, setIsPremium] = useState(false);
   const [iaData, setIaData] = useState<Record<string, PrediccionResponse | "loading" | null>>({});
+
+  const handleActivarPremium = () => {
+    Controller.activarPremiumPadre(padreId);
+    setIsPremium(true);
+  };
 
   const handlePredict = async (alumnoId: string, cursoId: string) => {
     const key = `${alumnoId}-${cursoId}`;
@@ -138,6 +144,7 @@ export default function PadreDashboard() {
     }
     setPadreId(currentUser.id);
     setUserName(currentUser.nombre);
+    setIsPremium(currentUser.esPremium || false);
     fetchDashboard(currentUser.id);
     setLoading(false);
   }, [router, fetchDashboard]);
@@ -577,7 +584,25 @@ export default function PadreDashboard() {
                 <Sparkles className="h-5 w-5 text-amber-400" /> Alerta IA: Predicción de Desempeño
               </h3>
               
-              {cursos.length === 0 ? (
+              {!isPremium ? (
+                <div className="relative z-10 flex flex-col items-center justify-center py-8 text-center space-y-4">
+                  <div className="bg-amber-400/20 p-4 rounded-full">
+                    <Award className="h-8 w-8 text-amber-400" />
+                  </div>
+                  <div>
+                    <h4 className="text-lg font-bold text-white">Disponible en el Plan Premium</h4>
+                    <p className="text-sm text-slate-300 max-w-sm mx-auto mt-2">
+                      Desbloquea predicciones de desempeño impulsadas por IA y alertas tempranas de riesgo académico por solo S/15 al mes.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleActivarPremium}
+                    className="mt-4 px-6 py-2.5 bg-amber-400 hover:bg-amber-500 text-[#0F2C59] font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20"
+                  >
+                    Activar Premium (S/15/mes)
+                  </button>
+                </div>
+              ) : cursos.length === 0 ? (
                 <p className="text-xs text-slate-300 py-4 relative z-10">No hay asignaturas disponibles para análisis.</p>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">

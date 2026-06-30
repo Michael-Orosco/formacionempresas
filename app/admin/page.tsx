@@ -17,7 +17,10 @@ import {
   Award,
   BarChart3,
   Bell,
-  CheckCircle
+  CheckCircle,
+  Building,
+  Landmark,
+  Coins
 } from "lucide-react";
 import { Controller } from "@/lib/mvc/controller";
 import { calcularRiesgo } from "@/lib/ia/prediccion";
@@ -199,7 +202,7 @@ export default function AdminDashboard() {
         
         {/* KPIs */}
         {kpis && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
             
             <div className="bg-white border border-slate-200 rounded-2xl p-5 flex items-center gap-4 shadow-sm card-hover">
               <div className="p-3 bg-blue-50 text-[#0F2C59] border border-blue-100 rounded-xl shrink-0">
@@ -265,6 +268,18 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            <div className="bg-white border border-blue-200 rounded-2xl p-5 flex items-center gap-4 shadow-sm card-hover relative overflow-hidden">
+              <div className="absolute -right-6 -top-6 w-20 h-20 bg-blue-50 rounded-full" />
+              <div className="p-3 bg-blue-600 text-white border border-blue-700 rounded-xl shrink-0 relative z-10">
+                <Building className="h-5 w-5" />
+              </div>
+              <div className="min-w-0 relative z-10">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider leading-none">Plan Actual</p>
+                <h4 className="text-xl font-extrabold text-slate-900 mt-1">{kpis.tier}</h4>
+                <p className="text-[10px] text-blue-600 font-bold mt-0.5">S/{kpis.precioTier}/mes</p>
+              </div>
+            </div>
+
           </div>
         )}
 
@@ -289,6 +304,68 @@ export default function AdminDashboard() {
                 <span className="text-[9px] text-red-500 font-bold block uppercase tracking-wide">Fallidos</span>
                 <span className="text-xl font-extrabold text-red-600">{kpis.notificacionesFallo}</span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Módulo 8: Monetización */}
+        {kpis && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="bg-gradient-to-br from-[#0F2C59] to-slate-800 border border-[#0F2C59] rounded-2xl p-6 shadow-md text-white">
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-white/10">
+                <Landmark className="h-6 w-6 text-amber-400" />
+                <div>
+                  <h3 className="text-sm font-extrabold">Ingresos Estimados (Simulación)</h3>
+                  <p className="text-[10px] text-slate-300">Proyección mensual de monetización</p>
+                </div>
+              </div>
+              
+              <div className="space-y-3">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-300">Licencia Colegio ({kpis.tier})</span>
+                  <span className="font-bold">S/ {kpis.precioTier}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-300">Padres Premium ({kpis.padresPremium} x S/15)</span>
+                  <span className="font-bold text-emerald-400">+ S/ {kpis.padresPremium * 15}</span>
+                </div>
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-slate-300">Convenios Academias ({kpis.academias.length})</span>
+                  <span className="font-bold text-emerald-400">+ S/ {kpis.ingresoAcademias}</span>
+                </div>
+                <div className="pt-3 border-t border-white/20 flex justify-between items-center">
+                  <span className="text-xs font-bold uppercase tracking-wider">Total Proyectado</span>
+                  <span className="text-2xl font-extrabold text-amber-400">S/ {kpis.ingresosEstimados}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-slate-100">
+                <GraduationCap className="h-6 w-6 text-blue-600" />
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-800">Academias Integradas (B2B)</h3>
+                  <p className="text-[10px] text-slate-500">Academias preuniversitarias con convenio activo</p>
+                </div>
+              </div>
+              
+              {kpis.academias.length === 0 ? (
+                <p className="text-xs text-slate-500 text-center py-6">No hay academias registradas.</p>
+              ) : (
+                <div className="space-y-3">
+                  {kpis.academias.map((acad: any) => (
+                    <div key={acad.id} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                      <div className="flex items-center gap-3">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                        <span className="text-sm font-bold text-slate-700">{acad.nombre}</span>
+                      </div>
+                      <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md border border-blue-100">
+                        S/ {acad.montoMensual}/mes
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

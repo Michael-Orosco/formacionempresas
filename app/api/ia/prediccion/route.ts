@@ -2,8 +2,15 @@ import { NextResponse } from "next/server";
 import { Groq } from "groq-sdk";
 
 export async function POST(req: Request) {
+  if (!process.env.GROQ_API_KEY) {
+    return NextResponse.json(
+      { error: "La API de IA no está configurada. Contacta al administrador para añadir la GROQ_API_KEY." },
+      { status: 503 }
+    );
+  }
+
   const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY || "dummy",
+    apiKey: process.env.GROQ_API_KEY,
   });
 
   try {
@@ -43,7 +50,7 @@ DEBES responder ÚNICAMENTE con un JSON válido que tenga esta estructura exacta
           content: prompt
         }
       ],
-      model: "llama3-8b-8192", // Modelo ligero y rápido de Groq
+      model: "llama-3.1-8b-instant", // Modelo vigente de Groq
       temperature: 0.2, // Baja temperatura para mantener consistencia
       response_format: { type: "json_object" }
     });
