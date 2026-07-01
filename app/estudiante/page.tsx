@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/Badge";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TableSkeleton } from "@/components/ui/Skeleton";
 import { TaskUrgencyBadge } from "@/components/ui/TaskUrgencyBadge";
+import { StudentAIChat } from "@/components/StudentAIChat";
 
 interface Curso {
   id: string;
@@ -507,6 +508,8 @@ export default function EstudianteDashboard() {
           )}
         </div>
       </main>
+
+      <StudentAIChat />
     </div>
   );
 }

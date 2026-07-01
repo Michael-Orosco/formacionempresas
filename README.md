@@ -55,7 +55,10 @@ Las contraseñas se almacenan con **bcrypt** (`lib/password.ts`). Nunca se compa
 
 ## Módulo IA
 
-Predicción de notas vía Groq (`llama-3.1-8b-instant`). La API key **nunca** se expone al cliente.
+- Predicción de notas vía Groq (`llama-3.1-8b-instant`) en `app/api/ia/prediccion/route.ts`.
+- Chat académico para alumnos vía Groq (`openai/gpt-oss-120b`) en `app/api/ia/chat/route.ts`, con widget flotante `components/StudentAIChat.tsx` en `/estudiante`. Responde solo sobre tareas, cursos, horario/sílabo y anuncios del alumno (contexto real desde `Controller.getEstudianteDashboardData`).
+
+La API key **nunca** se expone al cliente.
 
 ## Pagos simulados
 
