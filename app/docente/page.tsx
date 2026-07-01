@@ -434,7 +434,7 @@ export default function DocenteDashboard() {
             <CardHeader
               icon={<MessageSquare className="h-5 w-5" />}
               title="Difusión de Avisos (WhatsApp)"
-              action={<Badge variant="warning">Simulado</Badge>}
+              // SIMULADO — no conectado a API real de WhatsApp
             />
 
             <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl text-[11px] text-amber-800 leading-relaxed mb-4">

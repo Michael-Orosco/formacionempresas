@@ -17,7 +17,7 @@ import {
   Landmark,
   Coins,
   LayoutDashboard,
-  Settings,
+
   AlertTriangle,
   Menu,
   X,
@@ -37,7 +37,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { KpiSkeletonGrid, TableSkeleton } from "@/components/ui/Skeleton";
 import { Avatar } from "@/components/ui/Avatar";
 
-type NavSection = "dashboard" | "usuarios" | "ingresos" | "academias" | "riesgo" | "config";
+type NavSection = "dashboard" | "usuarios" | "ingresos" | "academias" | "riesgo";
 
 interface UserRecord {
   id: string;
@@ -78,7 +78,6 @@ const NAV_ITEMS: { id: NavSection; label: string; icon: typeof LayoutDashboard }
   { id: "ingresos", label: "Ingresos", icon: Coins },
   { id: "academias", label: "Academias", icon: GraduationCap },
   { id: "riesgo", label: "Alumnos en Riesgo", icon: AlertTriangle },
-  { id: "config", label: "Configuración", icon: Settings },
 ];
 
 const USERS_PER_PAGE = 8;
@@ -392,7 +391,7 @@ export default function AdminDashboard() {
                     icon={<Landmark className="h-6 w-6 text-brand-amber" />}
                     title="Ingresos Estimados"
                   />
-                  <p className="text-xs text-slate-200 mb-4">Proyección mensual · SIMULADO</p>
+                  <p className="text-xs text-slate-200 mb-4">Proyección de ingresos mensual</p>
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-slate-200">Licencia ({kpis.tier})</span>
@@ -423,7 +422,7 @@ export default function AdminDashboard() {
                 icon={<Landmark className="h-6 w-6 text-brand-amber" />}
                 title="Ingresos Estimados"
               />
-              <p className="text-xs text-slate-200 mb-4">Proyección mensual · SIMULADO</p>
+              <p className="text-xs text-slate-200 mb-4">Proyección de ingresos mensual</p>
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-slate-200">Licencia Colegio ({kpis.tier})</span>
@@ -625,20 +624,8 @@ export default function AdminDashboard() {
             </Card>
           )}
 
-          {/* Config */}
-          {activeSection === "config" && (
-            <Card>
-              <CardHeader icon={<Settings className="h-5 w-5" />} title="Configuración" />
-              <p className="text-sm text-text-secondary">
-                Panel de configuración institucional. Los ajustes avanzados estarán disponibles en la versión con base de datos centralizada.
-              </p>
-              <div className="mt-4 p-4 bg-slate-50 rounded-xl border border-border-subtle text-xs text-text-secondary">
-                <p><strong>Colegio:</strong> Colegio Anglo Americano</p>
-                <p className="mt-1"><strong>Licencia:</strong> Activa</p>
-                <p className="mt-1"><strong>Persistencia:</strong> LocalStorage (modo demo)</p>
-              </div>
-            </Card>
-          )}
+          {/* TODO: reintroducir en versión con base de datos centralizada, con edición real.
+               Datos disponibles desde Controller: nombre del colegio, estado de licencia, tier. */}
         </main>
       </div>
 
