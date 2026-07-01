@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import {
   GraduationCap,
   LogOut,
-  Loader2,
   Users,
   AlertTriangle,
   BookOpen,
@@ -17,12 +16,22 @@ import {
   XCircle,
   Megaphone,
   Award,
-  ChevronRight,
   HeartHandshake,
   Sparkles,
+  Loader2,
 } from "lucide-react";
 import { Controller } from "@/lib/mvc/controller";
 import { predecirNota, PrediccionResponse } from "@/lib/ia/prediccion";
+import { logger } from "@/lib/logger";
+import { Button } from "@/components/ui/Button";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Badge, riesgoBadgeVariant } from "@/components/ui/Badge";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { useToast } from "@/components/ui/Toast";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { KpiSkeletonGrid, TableSkeleton } from "@/components/ui/Skeleton";
+import { TaskUrgencyBadge } from "@/components/ui/TaskUrgencyBadge";
+import { Avatar } from "@/components/ui/Avatar";
 
 interface Hijo {
   vinculacionId: string;
@@ -87,6 +96,7 @@ interface Silabo {
 
 export default function PadreDashboard() {
   const router = useRouter();
+  const { toast } = useToast();
   const [padreId, setPadreId] = useState("");
   const [userName, setUserName] = useState("Padre de Familia");
   const [loading, setLoading] = useState(true);
@@ -107,38 +117,47 @@ export default function PadreDashboard() {
   const [isPremium, setIsPremium] = useState(false);
   const [iaData, setIaData] = useState<Record<string, PrediccionResponse | "loading" | null>>({});
 
+  const [desvincularTarget, setDesvincularTarget] = useState<{ id: string; nombre: string } | null>(null);
+  const [desvincularLoading, setDesvincularLoading] = useState(false);
+
   const handleActivarPremium = () => {
+    // SIMULADO
     Controller.activarPremiumPadre(padreId);
     setIsPremium(true);
+    toast.success("Plan Premium activado correctamente");
   };
 
   const handlePredict = async (alumnoId: string, cursoId: string) => {
     const key = `${alumnoId}-${cursoId}`;
-    setIaData(prev => ({ ...prev, [key]: "loading" }));
-    const result = await predecirNota(alumnoId, cursoId);
-    setIaData(prev => ({ ...prev, [key]: result }));
+    setIaData((prev) => ({ ...prev, [key]: "loading" }));
+    try {
+      const result = await predecirNota(alumnoId, cursoId);
+      setIaData((prev) => ({ ...prev, [key]: result }));
+    } catch (err) {
+      logger.error("Error al generar predicción IA", err);
+      toast.error("No se pudo generar el análisis IA");
+      setIaData((prev) => ({ ...prev, [key]: null }));
+    }
   };
 
-  const fetchDashboard = useCallback(
-    (id: string, filtro?: string) => {
-      const data = Controller.getPadreDashboardData(
-        id,
-        filtro && filtro !== "todos" ? filtro : undefined
-      );
-      setHijos(data.hijos);
-      setResumen(data.resumen);
-      setTareas(data.tareas);
-      setCursos(data.cursos);
-      setAnuncios(data.anuncios);
-      setLogs(data.logs);
-      setSilabos(data.silabos);
-    },
-    []
-  );
+  const fetchDashboard = useCallback((id: string, filtro?: string) => {
+    const data = Controller.getPadreDashboardData(
+      id,
+      filtro && filtro !== "todos" ? filtro : undefined
+    );
+    setHijos(data.hijos);
+    setResumen(data.resumen);
+    setTareas(data.tareas);
+    setCursos(data.cursos);
+    setAnuncios(data.anuncios);
+    setLogs(data.logs);
+    setSilabos(data.silabos);
+  }, []);
 
   useEffect(() => {
     const currentUser = Controller.getCurrentUser();
     if (!currentUser || currentUser.rol !== "PADRE") {
+      logger.log("[Padre View] Usuario no autorizado. Redirigiendo a Login.");
       router.push("/");
       return;
     }
@@ -171,41 +190,31 @@ export default function PadreDashboard() {
       setCodigoVinculo("");
       fetchDashboard(padreId, hijoSeleccionado);
     } catch (err: unknown) {
-      setVinculoError(err instanceof Error ? err.message : "Error al vincular");
+      const message = err instanceof Error ? err.message : "Error al vincular";
+      setVinculoError(message);
+      logger.error("Error al vincular estudiante", err);
     } finally {
       setVinculoLoading(false);
     }
   };
 
-  const handleDesvincular = (estudianteId: string, nombre: string) => {
-    if (!confirm(`¿Desvincular a ${nombre} de tu cuenta?`)) return;
+  const handleConfirmDesvincular = () => {
+    if (!desvincularTarget) return;
+    setDesvincularLoading(true);
     try {
-      Controller.desvincularEstudiante(padreId, estudianteId);
-      if (hijoSeleccionado === estudianteId) setHijoSeleccionado("todos");
-      fetchDashboard(padreId, hijoSeleccionado === estudianteId ? "todos" : hijoSeleccionado);
+      Controller.desvincularEstudiante(padreId, desvincularTarget.id);
+      if (hijoSeleccionado === desvincularTarget.id) setHijoSeleccionado("todos");
+      fetchDashboard(
+        padreId,
+        hijoSeleccionado === desvincularTarget.id ? "todos" : hijoSeleccionado
+      );
+      setDesvincularTarget(null);
     } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Error al desvincular");
+      toast.error(err instanceof Error ? err.message : "Error al desvincular");
+      logger.error("Error al desvincular estudiante", err);
+    } finally {
+      setDesvincularLoading(false);
     }
-  };
-
-  const getUrgencyBadge = (fechaEntregaStr: string) => {
-    const ahora = new Date();
-    const entrega = new Date(fechaEntregaStr);
-    const diffHours = (entrega.getTime() - ahora.getTime()) / (1000 * 60 * 60);
-
-    if (diffHours < 0) {
-      return { text: "Vencido", className: "bg-red-50 text-red-700 border-red-200" };
-    }
-    if (diffHours < 24) {
-      return {
-        text: "Urgente (< 24h)",
-        className: "bg-red-100 text-red-800 border-red-300 animate-pulse font-bold",
-      };
-    }
-    if (diffHours < 72) {
-      return { text: "Próxima (< 72h)", className: "bg-amber-50 text-amber-800 border-amber-300" };
-    }
-    return { text: "Vigente (> 3 días)", className: "bg-emerald-50 text-emerald-800 border-emerald-300" };
   };
 
   const formatFecha = (fechaStr: string) =>
@@ -216,117 +225,143 @@ export default function PadreDashboard() {
       minute: "2-digit",
     });
 
+  const hijoActivo = hijos.find((h) => h.id === hijoSeleccionado);
+
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-slate-100 min-h-screen">
-        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
-          <Loader2 className="h-10 w-10 text-[#0F2C59] animate-spin" />
-          <p className="text-slate-600 text-sm font-semibold">Cargando portal de padres...</p>
+      <div className="flex min-h-screen bg-background">
+        <div className="flex-1 p-6 space-y-6 max-w-7xl mx-auto w-full">
+          <KpiSkeletonGrid count={4} />
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <TableSkeleton rows={4} />
+            <div className="lg:col-span-2">
+              <TableSkeleton rows={6} />
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-100 min-h-screen text-slate-800">
-      <header className="bg-[#0F2C59] text-white sticky top-0 z-10 border-b-4 border-[#A30000] shadow-lg px-6 py-4 flex items-center justify-between">
+    <div className="flex-1 flex flex-col bg-background min-h-screen text-text-primary">
+      <header className="bg-brand-navy text-white sticky top-0 z-10 border-b-4 border-brand-red shadow-lg px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-white/10 border border-white/20 p-2 rounded-xl text-amber-400">
+          <div className="bg-white/10 border border-white/20 p-2 rounded-xl text-brand-amber">
             <GraduationCap className="h-6 w-6" />
           </div>
           <div>
             <span className="text-lg font-extrabold tracking-wide uppercase leading-tight flex items-center gap-2">
               Cognitor
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-500/20 text-violet-200 border border-violet-500/30 tracking-normal normal-case">
+              <Badge variant="neutral" className="normal-case tracking-normal text-[10px] bg-violet-500/20 text-violet-200 border-violet-500/30">
                 Portal Padres
-              </span>
+              </Badge>
             </span>
-            <p className="text-[10px] text-slate-400">
-              {hijoSeleccionado !== "todos" && hijos.find(h => h.id === hijoSeleccionado)
-                ? `Viendo perfil de: ${hijos.find(h => h.id === hijoSeleccionado)?.nombre}`
+            <p className="text-[10px] text-slate-300">
+              {hijoActivo
+                ? `Viendo perfil de: ${hijoActivo.nombre}`
                 : "Seguimiento académico de tus hijos"}
             </p>
           </div>
         </div>
 
         <div className="flex items-center gap-4">
-          <div className="hidden md:flex flex-col text-right bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
-            <p className="text-xs text-slate-200 font-bold">{userName}</p>
-            <p className="text-[9px] text-violet-300 font-semibold uppercase">Apoderado</p>
+          <div className="hidden md:flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
+            <Avatar nombre={userName} rol="PADRE" size="sm" />
+            <div className="text-right">
+              <p className="text-xs text-slate-200 font-bold">{userName}</p>
+              <p className="text-[9px] text-violet-300 font-semibold uppercase">Apoderado</p>
+            </div>
           </div>
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleLogout}
-            className="flex items-center justify-center p-2 bg-white/10 hover:bg-red-700/25 border border-white/20 hover:border-red-500/40 text-slate-300 hover:text-red-300 rounded-xl transition-all cursor-pointer"
+            className="bg-white/10 hover:bg-danger/25 border border-white/20 hover:border-danger/40 text-slate-300 hover:text-red-300 rounded-xl p-2"
             title="Cerrar Sesión"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+            icon={<LogOut className="h-4 w-4" />}
+          />
         </div>
       </header>
 
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
-
-        {/* KPIs */}
         {resumen && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover flex items-center gap-4">
-              <div className="p-2.5 bg-violet-50 text-violet-700 border border-violet-100 rounded-xl shrink-0">
-                <Users className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Hijos</p>
-                <p className="text-2xl font-extrabold text-slate-900 mt-0.5">{resumen.totalHijos}</p>
-              </div>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover flex items-center gap-4">
-              <div className="p-2.5 bg-blue-50 text-[#0F2C59] border border-blue-100 rounded-xl shrink-0">
-                <BookOpen className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Pendientes</p>
-                <p className="text-2xl font-extrabold text-slate-900 mt-0.5">{resumen.tareasPendientes}</p>
-              </div>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover flex items-center gap-4">
-              <div className="p-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl shrink-0">
-                <AlertTriangle className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">Urgentes</p>
-                <p className="text-2xl font-extrabold text-red-600 mt-0.5">{resumen.tareasUrgentes}</p>
-              </div>
-            </div>
-            <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover flex items-center gap-4">
-              <div className="p-2.5 bg-emerald-50 text-emerald-600 border border-emerald-100 rounded-xl shrink-0">
-                <Bell className="h-4 w-4" />
-              </div>
-              <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase leading-none">WhatsApp</p>
-                <p className="text-2xl font-extrabold text-emerald-700 mt-0.5">{resumen.notificacionesExito}</p>
-              </div>
-            </div>
+            {[
+              { icon: Users, label: "Hijos", value: resumen.totalHijos, accent: "text-brand-navy" },
+              { icon: BookOpen, label: "Pendientes", value: resumen.tareasPendientes, accent: "text-brand-navy" },
+              { icon: AlertTriangle, label: "Urgentes", value: resumen.tareasUrgentes, accent: "text-danger" },
+              { icon: Bell, label: "WhatsApp", value: resumen.notificacionesExito, accent: "text-success" },
+            ].map((kpi) => (
+              <Card key={kpi.label} padding="sm">
+                <div className="flex items-center gap-4">
+                  <div className="p-2.5 bg-brand-navy/5 text-brand-navy border border-border-subtle rounded-xl shrink-0">
+                    <kpi.icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold text-text-secondary uppercase leading-none">{kpi.label}</p>
+                    <p className={`text-2xl font-extrabold mt-0.5 ${kpi.accent}`}>{kpi.value}</p>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {hijos.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto pb-1" role="tablist" aria-label="Seleccionar hijo">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={hijoSeleccionado === "todos"}
+              onClick={() => setHijoSeleccionado("todos")}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold shrink-0 transition-all cursor-pointer ${
+                hijoSeleccionado === "todos"
+                  ? "bg-brand-navy border-brand-navy text-white shadow-md"
+                  : "bg-white border-border-subtle text-text-secondary hover:border-slate-300"
+              }`}
+            >
+              <Users className="h-4 w-4 shrink-0" />
+              Todos
+            </button>
+            {hijos.map((hijo) => (
+              <button
+                key={hijo.id}
+                type="button"
+                role="tab"
+                aria-selected={hijoSeleccionado === hijo.id}
+                onClick={() => setHijoSeleccionado(hijo.id)}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold shrink-0 transition-all cursor-pointer ${
+                  hijoSeleccionado === hijo.id
+                    ? "bg-brand-navy border-brand-navy text-white shadow-md"
+                    : "bg-white border-border-subtle text-text-secondary hover:border-slate-300"
+                }`}
+              >
+                <Avatar nombre={hijo.nombre} rol="ESTUDIANTE" size="sm" />
+                <span className="truncate max-w-[120px]">{hijo.nombre.split(" ")[0]}</span>
+              </button>
+            ))}
           </div>
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Panel lateral */}
           <div className="space-y-5">
-
-            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Link2 className="h-5 w-5 text-violet-600" /> Vincular hijo/a
-              </h3>
-              <p className="text-[11px] text-slate-500">
+            <Card>
+              <CardHeader
+                icon={<Link2 className="h-5 w-5" />}
+                title="Vincular hijo/a"
+              />
+              <p className="text-[11px] text-text-secondary mb-4">
                 Ingresa el código de vinculación que te entregó el colegio para asociar a tu hijo/a.
               </p>
 
               {vinculoMsg && (
-                <div className="p-3 bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg text-xs font-medium flex items-center gap-2">
+                <div className="p-3 bg-emerald-50 border border-emerald-100 text-success rounded-lg text-xs font-medium flex items-center gap-2 mb-3">
                   <CheckCircle className="h-4 w-4 shrink-0" /> {vinculoMsg}
                 </div>
               )}
               {vinculoError && (
-                <div className="p-3 bg-red-50 border border-red-100 text-red-700 rounded-lg text-xs font-medium">
+                <div className="p-3 bg-red-50 border border-red-100 text-danger rounded-lg text-xs font-medium mb-3">
                   {vinculoError}
                 </div>
               )}
@@ -338,328 +373,337 @@ export default function PadreDashboard() {
                   value={codigoVinculo}
                   onChange={(e) => setCodigoVinculo(e.target.value.toUpperCase())}
                   placeholder="Ej. VINC-LUCIA-5A"
-                  className="w-full bg-slate-50 border border-slate-300 focus:border-violet-600 focus:ring-1 focus:ring-violet-600 rounded-lg py-2.5 px-3 text-slate-800 placeholder-slate-400 text-xs focus:outline-none uppercase tracking-wider"
+                  className="w-full bg-slate-50 border border-border-subtle focus:border-brand-navy focus:ring-2 focus:ring-brand-navy/10 rounded-lg py-2.5 px-3 text-text-primary placeholder-text-secondary text-xs focus:outline-none uppercase tracking-wider"
                 />
-                <button
+                <Button
                   type="submit"
-                  disabled={vinculoLoading}
-                  className="w-full bg-violet-700 hover:bg-violet-800 text-white font-bold rounded-lg py-2.5 text-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  className="w-full"
+                  size="sm"
+                  loading={vinculoLoading}
+                  icon={<HeartHandshake className="h-4 w-4" />}
                 >
-                  {vinculoLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <>
-                      <HeartHandshake className="h-4 w-4" /> Vincular estudiante
-                    </>
-                  )}
-                </button>
+                  Vincular estudiante
+                </Button>
               </form>
-            </section>
+            </Card>
 
-            {/* Hijos vinculados */}
-            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Users className="h-5 w-5 text-[#0F2C59]" /> Mis hijos ({hijos.length})
-              </h3>
-
+            <Card>
+              <CardHeader
+                icon={<Users className="h-5 w-5" />}
+                title={`Mis hijos (${hijos.length})`}
+              />
               {hijos.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-4">
-                  Aún no tienes hijos vinculados. Usa un código de vinculación arriba.
-                </p>
+                <EmptyState
+                  icon={Users}
+                  title="Sin hijos vinculados"
+                  description="Usa un código de vinculación arriba para asociar a tu hijo/a."
+                />
               ) : (
                 <div className="space-y-2">
-                  <button
-                    onClick={() => setHijoSeleccionado("todos")}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg border text-xs font-semibold transition-all cursor-pointer ${
-                      hijoSeleccionado === "todos"
-                        ? "bg-[#0F2C59] border-[#0F2C59] text-white"
-                        : "bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100"
-                    }`}
-                  >
-                    Ver todos los hijos
-                  </button>
                   {hijos.map((hijo) => (
                     <div
                       key={hijo.id}
-                      className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border transition-all ${
+                      className={`flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border transition-all ${
                         hijoSeleccionado === hijo.id
-                          ? "bg-violet-50 border-violet-300"
-                          : "bg-slate-50 border-slate-200 hover:border-slate-300"
+                          ? "bg-brand-navy/5 border-brand-navy/30"
+                          : "bg-slate-50 border-border-subtle"
                       }`}
                     >
-                      <button
-                        onClick={() => setHijoSeleccionado(hijo.id)}
-                        className="flex-1 text-left cursor-pointer"
-                      >
-                        <p className="text-xs font-bold text-slate-800">{hijo.nombre}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          {hijo.aula.grado} — Sección {hijo.aula.seccion}
-                        </p>
-                      </button>
-                      <button
-                        onClick={() => handleDesvincular(hijo.id, hijo.nombre)}
-                        className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                        <Avatar nombre={hijo.nombre} rol="ESTUDIANTE" size="sm" />
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-text-primary truncate">{hijo.nombre}</p>
+                          <p className="text-[10px] text-text-secondary mt-0.5">
+                            {hijo.aula.grado} — Sección {hijo.aula.seccion}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDesvincularTarget({ id: hijo.id, nombre: hijo.nombre })}
+                        className="p-1.5 text-text-secondary hover:text-danger hover:bg-red-50 rounded-lg"
                         title="Desvincular"
-                      >
-                        <Unlink className="h-3.5 w-3.5" />
-                      </button>
+                        icon={<Unlink className="h-3.5 w-3.5" />}
+                      />
                     </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+
+            <Card>
+              <CardHeader
+                icon={<Bell className="h-5 w-5" />}
+                title="Alertas WhatsApp"
+              />
+              {logs.length === 0 ? (
+                <EmptyState
+                  icon={Bell}
+                  title="Sin notificaciones"
+                  description="No hay alertas registradas por el momento."
+                />
+              ) : (
+                <div className="space-y-1">
+                  {logs.slice(0, 5).map((log) => (
+                    <div
+                      key={log.id}
+                      className="flex items-start gap-2.5 py-2 border-b border-slate-50 last:border-0"
+                    >
+                      {log.estado === "EXITO" ? (
+                        <CheckCircle className="h-4 w-4 text-success shrink-0 mt-0.5" />
+                      ) : (
+                        <XCircle className="h-4 w-4 text-danger shrink-0 mt-0.5" />
+                      )}
+                      <div>
+                        <p className="text-[11px] font-semibold text-text-primary">{log.estudiante.nombre}</p>
+                        <p className="text-[10px] text-text-secondary">
+                          {log.tarea ? log.tarea.titulo : "Anuncio general"} — {formatFecha(log.fechaEnvio)}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          <div className="lg:col-span-2 space-y-6">
+            <section className="space-y-3">
+              <CardHeader
+                icon={<AlertTriangle className="h-5 w-5" />}
+                title={`Actividades de tus hijos (${tareas.length})`}
+                className="mb-0 pb-2"
+              />
+
+              {tareas.length === 0 ? (
+                <Card hover={false}>
+                  <EmptyState
+                    icon={BookOpen}
+                    title={hijos.length === 0 ? "Vincula un hijo primero" : "Sin actividades"}
+                    description={
+                      hijos.length === 0
+                        ? "Vincula un hijo para ver sus actividades."
+                        : "No hay actividades registradas para el filtro seleccionado."
+                    }
+                  />
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {tareas.map((tarea) => (
+                    <Card key={`${tarea.id}-${tarea.estudiante.id}`} padding="sm">
+                      <div className="space-y-2">
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                          <Badge variant="neutral">{tarea.estudiante.nombre.split(" ")[0]}</Badge>
+                          <Badge variant="brand">{tarea.curso.nombre}</Badge>
+                          <TaskUrgencyBadge fechaEntrega={tarea.fechaEntrega} />
+                        </div>
+                        <h4 className="text-xs font-bold text-text-primary">{tarea.titulo}</h4>
+                        <p className="text-xs text-text-secondary line-clamp-2">{tarea.descripcion}</p>
+                      </div>
+                      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-xs">
+                        <span className="flex items-center gap-1.5 text-text-secondary font-semibold text-[10px]">
+                          <Clock className="h-3.5 w-3.5" />
+                          Límite: {formatFecha(tarea.fechaEntrega)}
+                        </span>
+                        <Badge variant={tarea.estado === "ENTREGADA" ? "success" : "warning"}>
+                          {tarea.estado}
+                        </Badge>
+                      </div>
+                    </Card>
                   ))}
                 </div>
               )}
             </section>
 
-            {/* Logs WhatsApp */}
-            <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-3">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Bell className="h-5 w-5 text-[#0F2C59]" /> Alertas WhatsApp
-              </h3>
-              {logs.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-2">Sin notificaciones registradas.</p>
-              ) : (
-                logs.slice(0, 5).map((log) => (
-                  <div
-                    key={log.id}
-                    className="flex items-start gap-2.5 py-2 border-b border-slate-50 last:border-0"
-                  >
-                    {log.estado === "EXITO" ? (
-                      <CheckCircle className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />
-                    )}
-                    <div>
-                      <p className="text-[11px] font-semibold text-slate-700">{log.estudiante.nombre}</p>
-                      <p className="text-[10px] text-slate-500">
-                        {log.tarea ? log.tarea.titulo : "Anuncio general"} — {formatFecha(log.fechaEnvio)}
-                      </p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </section>
-          </div>
-
-          {/* Contenido principal */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Tareas */}
             <section className="space-y-3">
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <AlertTriangle className="h-5 w-5 text-[#0F2C59]" /> Actividades de tus hijos ({tareas.length})
-              </h3>
-
-              {tareas.length === 0 ? (
-                <div className="bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
-                  <p className="text-slate-500 text-xs font-semibold">
-                    {hijos.length === 0
-                      ? "Vincula un hijo para ver sus actividades."
-                      : "No hay actividades registradas para el filtro seleccionado."}
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {tareas.map((tarea) => {
-                    const badge = getUrgencyBadge(tarea.fechaEntrega);
-                    return (
-                      <div
-                        key={`${tarea.id}-${tarea.estudiante.id}`}
-                        className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between gap-4 shadow-sm card-hover"
-                      >
-                        <div className="space-y-2">
-                          <div className="flex items-start justify-between gap-2 flex-wrap">
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-100">
-                              {tarea.estudiante.nombre.split(" ")[0]}
-                            </span>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-[#0F2C59] border border-blue-100">
-                              {tarea.curso.nombre}
-                            </span>
-                            <span
-                              className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${badge.className}`}
-                            >
-                              {badge.text}
-                            </span>
-                          </div>
-                          <h4 className="text-xs font-bold text-slate-800">{tarea.titulo}</h4>
-                          <p className="text-xs text-slate-500 line-clamp-2">{tarea.descripcion}</p>
-                        </div>
-                        <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs">
-                          <span className="flex items-center gap-1.5 text-slate-500 font-semibold text-[10px]">
-                            <Clock className="h-3.5 w-3.5" />
-                            Límite: {formatFecha(tarea.fechaEntrega)}
-                          </span>
-                          <span
-                            className={`text-[9px] font-bold px-2 py-0.5 rounded ${
-                              tarea.estado === "ENTREGADA"
-                                ? "bg-emerald-50 text-emerald-700"
-                                : "bg-amber-50 text-amber-700"
-                            }`}
-                          >
-                            {tarea.estado}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
-
-            {/* Anuncios */}
-            <section className="space-y-3">
-              <h3 className="text-base font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                <Megaphone className="h-5 w-5 text-[#0F2C59]" /> Avisos de docentes
-              </h3>
+              <CardHeader
+                icon={<Megaphone className="h-5 w-5" />}
+                title="Avisos de docentes"
+                className="mb-0 pb-2"
+              />
               {anuncios.length === 0 ? (
-                <div className="bg-white border border-slate-200 rounded-xl p-6 text-center shadow-sm">
-                  <p className="text-xs text-slate-500">No hay avisos recientes.</p>
-                </div>
+                <Card hover={false}>
+                  <EmptyState
+                    icon={Megaphone}
+                    title="Sin avisos recientes"
+                    description="Los docentes aún no han publicado avisos."
+                  />
+                </Card>
               ) : (
                 <div className="space-y-3">
                   {anuncios.map((anuncio) => (
-                    <div
-                      key={anuncio.id}
-                      className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm"
-                    >
+                    <Card key={anuncio.id} padding="sm">
                       <div className="flex items-start justify-between gap-2">
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-[#0F2C59] border border-blue-100">
-                          {anuncio.curso.nombre}
-                        </span>
-                        <span className="text-[10px] text-slate-400">{formatFecha(anuncio.fechaPublicacion)}</span>
+                        <Badge variant="brand">{anuncio.curso.nombre}</Badge>
+                        <span className="text-[10px] text-text-secondary">{formatFecha(anuncio.fechaPublicacion)}</span>
                       </div>
-                      <p className="text-xs text-slate-700 mt-2 font-medium">{anuncio.mensaje}</p>
-                      <p className="text-[10px] text-slate-400 mt-2">Por: {anuncio.docente}</p>
-                    </div>
+                      <p className="text-xs text-text-primary mt-2 font-medium">{anuncio.mensaje}</p>
+                      <p className="text-[10px] text-text-secondary mt-2">Por: {anuncio.docente}</p>
+                    </Card>
                   ))}
                 </div>
               )}
             </section>
 
-            {/* Cursos y sílabo */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <section className="space-y-3">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <BookOpen className="h-5 w-5 text-[#0F2C59]" /> Asignaturas
-                </h3>
-                <div className="space-y-3">
-                  {cursos.map((curso) => (
-                    <div
-                      key={`${curso.id}-${curso.estudiante.id}`}
-                      className="bg-white border border-slate-200 rounded-2xl p-4 shadow-sm card-hover"
-                    >
-                      <p className="text-[10px] font-bold text-violet-600 uppercase">
-                        {curso.estudiante.nombre.split(" ")[0]}
-                      </p>
-                      <h4 className="text-xs font-bold text-slate-800 mt-1">{curso.nombre}</h4>
-                      <p className="text-[10px] text-slate-500 mt-1">Docente: {curso.docente.nombre}</p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-
-              <section className="bg-white border border-slate-200 rounded-xl p-6 shadow-sm space-y-4">
-                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-                  <Award className="h-5 w-5 text-[#0F2C59]" /> Avance de sílabo
-                </h3>
-                {silabos.length === 0 ? (
-                  <p className="text-xs text-slate-500 text-center py-4">Sin temas registrados.</p>
+                <CardHeader
+                  icon={<BookOpen className="h-5 w-5" />}
+                  title="Asignaturas"
+                  className="mb-0 pb-2"
+                />
+                {cursos.length === 0 ? (
+                  <Card hover={false}>
+                    <EmptyState
+                      icon={BookOpen}
+                      title="Sin asignaturas"
+                      description="No hay cursos registrados para el filtro seleccionado."
+                    />
+                  </Card>
                 ) : (
-                  <div className="relative border-l-2 border-slate-100 pl-4 ml-2 space-y-4">
-                    {silabos.slice(0, 6).map((tema) => (
-                      <div key={`${tema.id}-${tema.estudiante.id}`} className="relative">
-                        <div className="absolute -left-[22px] top-1.5 w-2 h-2 rounded-full bg-violet-600 border border-white" />
-                        <p className="text-[9px] text-violet-600 font-bold uppercase">
-                          {tema.estudiante.nombre.split(" ")[0]} — {tema.curso.nombre}
+                  <div className="space-y-3">
+                    {cursos.map((curso) => (
+                      <Card key={`${curso.id}-${curso.estudiante.id}`} padding="sm">
+                        <p className="text-[10px] font-bold text-brand-navy uppercase">
+                          {curso.estudiante.nombre.split(" ")[0]}
                         </p>
-                        <h4 className="text-xs font-semibold text-slate-700">Sem. {tema.semana}: {tema.tema}</h4>
-                      </div>
+                        <h4 className="text-xs font-bold text-text-primary mt-1">{curso.nombre}</h4>
+                        <p className="text-[10px] text-text-secondary mt-1">Docente: {curso.docente.nombre}</p>
+                      </Card>
                     ))}
                   </div>
                 )}
               </section>
+
+              <Card>
+                <CardHeader
+                  icon={<Award className="h-5 w-5" />}
+                  title="Avance de sílabo"
+                />
+                {silabos.length === 0 ? (
+                  <EmptyState
+                    icon={Award}
+                    title="Sin temas registrados"
+                    description="El avance del sílabo aparecerá aquí."
+                  />
+                ) : (
+                  <div className="relative border-l-2 border-border-subtle pl-4 ml-2 space-y-4">
+                    {silabos.slice(0, 6).map((tema) => (
+                      <div key={`${tema.id}-${tema.estudiante.id}`} className="relative">
+                        <div className="absolute -left-[22px] top-1.5 w-2 h-2 rounded-full bg-brand-navy border border-white" />
+                        <p className="text-[9px] text-brand-navy font-bold uppercase">
+                          {tema.estudiante.nombre.split(" ")[0]} — {tema.curso.nombre}
+                        </p>
+                        <h4 className="text-xs font-semibold text-text-primary">
+                          Sem. {tema.semana}: {tema.tema}
+                        </h4>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </Card>
             </div>
 
-            {/* Módulo 7 — Alerta IA */}
-            <section className="bg-gradient-to-br from-[#0F2C59] to-slate-800 border border-[#0F2C59] rounded-xl p-6 shadow-md space-y-4 relative overflow-hidden">
-              <div className="absolute -right-10 -bottom-10 w-36 h-36 bg-white/5 rounded-full" />
-              <h3 className="text-sm font-extrabold text-white flex items-center gap-2 pb-2 border-b border-white/10 relative z-10">
-                <Sparkles className="h-5 w-5 text-amber-400" /> Alerta IA: Predicción de Desempeño
-              </h3>
-              
-              {!isPremium ? (
-                <div className="relative z-10 flex flex-col items-center justify-center py-8 text-center space-y-4">
-                  <div className="bg-amber-400/20 p-4 rounded-full">
-                    <Award className="h-8 w-8 text-amber-400" />
+            <Card className="border-brand-amber bg-brand-gradient relative overflow-hidden">
+              <CardHeader
+                icon={<Sparkles className="h-5 w-5 text-brand-amber" />}
+                title="Alerta IA: Predicción de Desempeño"
+                className="border-white/10 mb-0 pb-3 [&_h3]:text-white"
+              />
+
+              <div className="relative min-h-[200px]">
+                {cursos.length === 0 ? (
+                  <p className="text-xs text-slate-300 py-4">No hay asignaturas disponibles para análisis.</p>
+                ) : (
+                  <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${!isPremium ? "blur-sm pointer-events-none select-none" : ""}`}>
+                    {cursos.map((curso) => {
+                      const key = `${curso.estudiante.id}-${curso.id}`;
+                      const prediccion = iaData[key];
+
+                      return (
+                        <div
+                          key={key}
+                          className="bg-white/10 border border-white/20 rounded-xl p-4 flex flex-col justify-between gap-3"
+                        >
+                          <div>
+                            <p className="text-[10px] font-bold text-brand-amber uppercase">
+                              {curso.estudiante.nombre.split(" ")[0]}
+                            </p>
+                            <h4 className="text-xs font-bold text-white mt-0.5">{curso.nombre}</h4>
+                          </div>
+
+                          {!prediccion ? (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => handlePredict(curso.estudiante.id, curso.id)}
+                              className="mt-2 w-full"
+                              icon={<Sparkles className="h-3 w-3" />}
+                            >
+                              Generar Análisis IA
+                            </Button>
+                          ) : prediccion === "loading" ? (
+                            <div className="flex items-center justify-center gap-2 text-xs text-brand-amber py-1.5">
+                              <Loader2 className="h-4 w-4 animate-spin" /> Analizando actividad...
+                            </div>
+                          ) : (
+                            <div className="bg-white rounded-lg p-3 space-y-2 text-text-primary">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold uppercase text-text-secondary">Nota Estimada</span>
+                                <span className="text-sm font-extrabold text-brand-navy">
+                                  {prediccion.nota_estimada} / 20
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold uppercase text-text-secondary">Nivel de Riesgo</span>
+                                <Badge variant={riesgoBadgeVariant(prediccion.nivel_riesgo)}>
+                                  {prediccion.nivel_riesgo}
+                                </Badge>
+                              </div>
+                              <p className="text-[10px] text-text-secondary font-medium leading-tight pt-1 border-t border-slate-100">
+                                {prediccion.mensaje}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div>
+                )}
+
+                {!isPremium && (
+                  <div className="absolute inset-0 flex flex-col items-center justify-center text-center px-6 z-10">
+                    <div className="bg-brand-amber/20 p-4 rounded-full mb-4">
+                      <Sparkles className="h-8 w-8 text-brand-amber" />
+                    </div>
                     <h4 className="text-lg font-bold text-white">Disponible en el Plan Premium</h4>
                     <p className="text-sm text-slate-300 max-w-sm mx-auto mt-2">
-                      Desbloquea predicciones de desempeño impulsadas por IA y alertas tempranas de riesgo académico por solo S/15 al mes.
+                      Desbloquea predicciones de desempeño impulsadas por IA y alertas tempranas de riesgo académico.
                     </p>
+                    <Button
+                      onClick={handleActivarPremium}
+                      className="mt-4 bg-brand-amber hover:bg-amber-500 text-brand-navy font-bold shadow-lg shadow-brand-amber/20"
+                    >
+                      Activar Plan Premium — S/15/mes
+                    </Button>
                   </div>
-                  <button
-                    onClick={handleActivarPremium}
-                    className="mt-4 px-6 py-2.5 bg-amber-400 hover:bg-amber-500 text-[#0F2C59] font-bold rounded-xl transition-all shadow-lg shadow-amber-500/20"
-                  >
-                    Activar Premium (S/15/mes)
-                  </button>
-                </div>
-              ) : cursos.length === 0 ? (
-                <p className="text-xs text-slate-300 py-4 relative z-10">No hay asignaturas disponibles para análisis.</p>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 relative z-10">
-                  {cursos.map((curso) => {
-                    const key = `${curso.estudiante.id}-${curso.id}`;
-                    const prediccion = iaData[key];
-
-                    return (
-                      <div key={key} className="bg-white/10 border border-white/20 rounded-xl p-4 flex flex-col justify-between gap-3">
-                        <div>
-                          <p className="text-[10px] font-bold text-amber-300 uppercase">{curso.estudiante.nombre.split(" ")[0]}</p>
-                          <h4 className="text-xs font-bold text-white mt-0.5">{curso.nombre}</h4>
-                        </div>
-                        
-                        {!prediccion ? (
-                          <button
-                            onClick={() => handlePredict(curso.estudiante.id, curso.id)}
-                            className="mt-2 text-[10px] font-bold bg-white text-[#0F2C59] hover:bg-slate-100 px-3 py-1.5 rounded-lg transition-all w-full flex items-center justify-center gap-1.5"
-                          >
-                            <Sparkles className="h-3 w-3" /> Generar Análisis IA
-                          </button>
-                        ) : prediccion === "loading" ? (
-                          <div className="flex items-center justify-center gap-2 text-xs text-amber-200 py-1.5">
-                            <Loader2 className="h-4 w-4 animate-spin" /> Analizando actividad...
-                          </div>
-                        ) : (
-                          <div className="bg-white rounded-lg p-3 space-y-2 text-slate-800">
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold uppercase text-slate-500">Nota Estimada</span>
-                              <span className="text-sm font-extrabold text-[#0F2C59]">{prediccion.nota_estimada} / 20</span>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-[10px] font-bold uppercase text-slate-500">Nivel de Riesgo</span>
-                              <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded ${
-                                prediccion.nivel_riesgo === 'ALTO' ? 'bg-red-100 text-red-700' :
-                                prediccion.nivel_riesgo === 'MEDIO' ? 'bg-amber-100 text-amber-700' :
-                                'bg-emerald-100 text-emerald-700'
-                              }`}>
-                                {prediccion.nivel_riesgo}
-                              </span>
-                            </div>
-                            <p className="text-[10px] text-slate-600 font-medium leading-tight pt-1 border-t border-slate-100">
-                              {prediccion.mensaje}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+                )}
+              </div>
+            </Card>
           </div>
         </div>
-
       </main>
 
+      <ConfirmDialog
+        open={!!desvincularTarget}
+        onClose={() => setDesvincularTarget(null)}
+        onConfirm={handleConfirmDesvincular}
+        title="Desvincular estudiante"
+        description={`¿Desvincular a ${desvincularTarget?.nombre} de tu cuenta? Perderás acceso a su información académica.`}
+        confirmLabel="Desvincular"
+        loading={desvincularLoading}
+      />
     </div>
   );
 }

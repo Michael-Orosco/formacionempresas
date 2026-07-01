@@ -1,4 +1,5 @@
 import { Model, Usuario, Tarea, Anuncio, LogNotificacion, VinculacionPadreAlumno } from './model';
+import { hashPassword, verifyPassword } from '../password';
 
 export const Controller = {
   // Inicialización segura
@@ -12,17 +13,17 @@ export const Controller = {
   },
 
   // Autenticación de usuario
-  login(email: string, passwordHash: string): Usuario {
+  login(email: string, password: string): Usuario {
     this.init();
     const users = Model.getUsuarios();
     const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
 
     if (!user) {
-      throw new Error('Credenciales incorrectas (usuario no encontrado)');
+      throw new Error('AUTH_INVALID: Credenciales incorrectas');
     }
 
-    if (user.passwordHash !== passwordHash) {
-      throw new Error('Credenciales incorrectas (contraseña inválida)');
+    if (!verifyPassword(password, user.passwordHash)) {
+      throw new Error('AUTH_INVALID: Contraseña incorrecta');
     }
 
     Model.setCurrentUser(user);
@@ -145,7 +146,7 @@ export const Controller = {
     const newUser: Usuario = {
       id: 'usr_' + Math.random().toString(36).substring(2, 11),
       email: data.email,
-      passwordHash: data.passwordHash,
+      passwordHash: hashPassword(data.passwordHash),
       rol: data.rol,
       nombre: data.nombre,
       telefono: data.telefono,
@@ -731,6 +732,7 @@ export const Controller = {
   },
 
   // PADRE: Activar plan premium
+  // SIMULADO — no hay pasarela de pago real
   activarPremiumPadre(padreId: string) {
     this.init();
     const users = Model.getUsuarios();

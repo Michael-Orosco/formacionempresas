@@ -8,7 +8,7 @@ export interface Colegio {
 export interface Usuario {
   id: string;
   email: string;
-  passwordHash: string; // En localstorage guardamos contraseñas simples o hashes
+  passwordHash: string; // bcrypt hash — nunca almacenar texto plano
   rol: 'ADMIN' | 'DOCENTE' | 'ESTUDIANTE' | 'PADRE';
   nombre: string;
   telefono: string;
@@ -94,6 +94,7 @@ export interface AcademiaIntegrada {
   activa: boolean;
 }
 
+import { logger } from '../logger';
 import {
   applySeedToLocalStorage,
   buildSeedData,
@@ -128,7 +129,7 @@ export const Model = {
       savedVersion !== CURRENT_SEED_VERSION;
 
     if (needsReset) {
-      console.log(
+      logger.log(
         `[MVC Model] Seed desactualizado (v${savedVersion ?? 'ninguna'} → v${CURRENT_SEED_VERSION}). Reinicializando LocalStorage...`
       );
       clearLocalStorageDatabase();

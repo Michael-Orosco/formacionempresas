@@ -2,13 +2,35 @@
 
 @theme {
   --font-sans: var(--font-inter);
+
+  /* Brand */
+  --color-brand-navy: #0F2C59;
+  --color-brand-navy-light: #1a3d7c;
+  --color-brand-red: #A30000;
+  --color-brand-amber: #F59E0B;
+
+  /* Semantic */
+  --color-success: #059669;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+
+  /* Surfaces */
+  --color-surface: #FFFFFF;
+  --color-background: #F1F5F9;
+  --color-border-subtle: #E2E8F0;
+
+  /* Text */
+  --color-text-primary: #0F172A;
+  --color-text-secondary: #64748B;
 }
 
 :root {
-  --background: #f1f5f9;
-  --foreground: #0f172a;
-  --brand-navy: #0F2C59;
-  --brand-red: #A30000;
+  --background: var(--color-background);
+  --foreground: var(--color-text-primary);
+  --brand-navy: var(--color-brand-navy);
+  --brand-navy-light: var(--color-brand-navy-light);
+  --brand-red: var(--color-brand-red);
+  --brand-amber: var(--color-brand-amber);
 }
 
 body {
@@ -17,18 +39,16 @@ body {
   font-family: var(--font-sans), ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
 
-/* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--color-background);
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
@@ -38,13 +58,11 @@ html {
   background: #94a3b8;
 }
 
-/* Focus ring consistent */
 *:focus-visible {
-  outline: 2px solid #0F2C59;
+  outline: 2px solid var(--color-brand-navy);
   outline-offset: 2px;
 }
 
-/* Card hover transition */
 .card-hover {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -53,12 +71,10 @@ html {
   box-shadow: 0 8px 24px -4px rgba(15, 44, 89, 0.12);
 }
 
-/* Gradient backgrounds */
 .bg-brand-gradient {
-  background: linear-gradient(135deg, #0F2C59 0%, #1a3d7c 100%);
+  background: linear-gradient(135deg, var(--color-brand-navy) 0%, var(--color-brand-navy-light) 100%);
 }
 
-/* Pulse animation for urgent badges */
 @keyframes pulse-ring {
   0% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4); }
   70% { box-shadow: 0 0 0 6px rgba(220, 38, 38, 0); }
@@ -68,11 +84,36 @@ html {
   animation: pulse-ring 1.5s infinite;
 }
 
-/* Fade-in animation */
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 .fade-in {
   animation: fadeIn 0.3s ease both;
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+.modal-in {
+  animation: modalIn 0.2s ease both;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(100%); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.toast-in {
+  animation: toastIn 0.3s ease both;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
 }

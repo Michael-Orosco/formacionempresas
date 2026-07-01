@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cognitor
 
-## Getting Started
+Plataforma SaaS educativa para colegios privados en Perú. Construida con **Next.js 16**, **React 19**, **TypeScript** y **Tailwind CSS v4**.
 
-First, run the development server:
+## Inicio rápido
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Variables de entorno
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Copia `.env.example` a `.env.local`:
 
-## Learn More
+| Variable | Descripción |
+|----------|-------------|
+| `GROQ_API_KEY` | API key de Groq (solo servidor, en `app/api/ia/prediccion/route.ts`) |
+| `NEXT_PUBLIC_DEMO_MODE` | `true` muestra accesos de prueba en login; `false` para producción |
 
-To learn more about Next.js, take a look at the following resources:
+## Arquitectura
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+lib/mvc/
+  model.ts      → Persistencia (LocalStorage en demo)
+  controller.ts → Lógica de negocio
+  seedData.ts   → Datos semilla y migraciones
+app/            → Vistas por rol (/admin, /docente, /estudiante, /padre)
+components/ui/  → Sistema de diseño reutilizable
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Persistencia en LocalStorage
 
-## Deploy on Vercel
+> **Importante:** La persistencia en `localStorage` es válida **solo para demo, sustentación académica y prototipos comerciales**. No almacena datos reales de colegios en producción.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+El `Model` centraliza todas las lecturas/escrituras. Para migrar a Postgres/Supabase:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Reemplazar los métodos `get*` / `set*` en `lib/mvc/model.ts` por llamadas HTTP o un ORM.
+2. **No modificar** `controller.ts` ni las páginas — el patrón MVC ya desacopla la UI de la persistencia.
+
+### Seguridad de contraseñas
+
+Las contraseñas se almacenan con **bcrypt** (`lib/password.ts`). Nunca se comparan en texto plano.
+
+## Roles y rutas
+
+| Rol | Ruta | Credenciales demo (si `NEXT_PUBLIC_DEMO_MODE=true`) |
+|-----|------|-----------------------------------------------------|
+| Admin | `/admin` | admin@colegio.edu.pe / admin123 |
+| Docente | `/docente` | juan.perez@colegio.edu.pe / docente123 |
+| Estudiante | `/estudiante` | pedrito@colegio.edu.pe / alumno123 |
+| Padre | `/padre` | padre1@colegio.edu.pe / padre123 |
+
+## Módulo IA
+
+Predicción de notas vía Groq (`llama-3.1-8b-instant`). La API key **nunca** se expone al cliente.
+
+## Pagos simulados
+
+Los botones de activar plan premium y convenios con academias son **simulaciones** — no hay pasarela de pago real. Busca el comentario `SIMULADO` en el código.
+
+## Scripts
+
+```bash
+npm run dev    # Desarrollo
+npm run build  # Build de producción
+npm run start  # Servidor de producción
+```

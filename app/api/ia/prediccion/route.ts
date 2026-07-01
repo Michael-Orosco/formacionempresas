@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { Groq } from "groq-sdk";
+import { logger } from "@/lib/logger";
 
 export async function POST(req: Request) {
   if (!process.env.GROQ_API_KEY) {
@@ -65,7 +66,7 @@ DEBES responder ÚNICAMENTE con un JSON válido que tenga esta estructura exacta
     return NextResponse.json(parsedResponse);
     
   } catch (error) {
-    console.error("Error en API de predicción IA:", error);
+    logger.error("Error en API de predicción IA:", error);
     return NextResponse.json(
       { error: "Error interno en la predicción" },
       { status: 500 }

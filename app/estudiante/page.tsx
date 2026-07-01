@@ -12,12 +12,19 @@ import {
   AlertTriangle,
   Award,
   ChevronRight,
-  Loader2,
   Bell,
-  Rocket,
-  Lock
+  Sparkles,
+  ClipboardList,
+  Megaphone,
 } from "lucide-react";
 import { Controller } from "@/lib/mvc/controller";
+import { logger } from "@/lib/logger";
+import { Button } from "@/components/ui/Button";
+import { Card, CardHeader } from "@/components/ui/Card";
+import { Badge } from "@/components/ui/Badge";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { TableSkeleton } from "@/components/ui/Skeleton";
+import { TaskUrgencyBadge } from "@/components/ui/TaskUrgencyBadge";
 
 interface Curso {
   id: string;
@@ -59,7 +66,6 @@ interface Anuncio {
   docente: string;
 }
 
-
 export default function EstudianteDashboard() {
   const router = useRouter();
   const [courses, setCourses] = useState<Curso[]>([]);
@@ -67,7 +73,7 @@ export default function EstudianteDashboard() {
   const [syllabus, setSyllabus] = useState<Silabo[]>([]);
   const [anuncios, setAnuncios] = useState<Anuncio[]>([]);
   const [esSenior, setEsSenior] = useState(false);
-  const [academias, setAcademias] = useState<{id: string, nombre: string}[]>([]);
+  const [academias, setAcademias] = useState<{ id: string; nombre: string }[]>([]);
 
   const [selectedTask, setSelectedTask] = useState<Tarea | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,10 +81,9 @@ export default function EstudianteDashboard() {
   const [userName, setUserName] = useState("Estudiante");
 
   useEffect(() => {
-    // Protección de ruta a nivel de cliente
     const currentUser = Controller.getCurrentUser();
     if (!currentUser || currentUser.rol !== "ESTUDIANTE") {
-      console.log("[Estudiante View] Usuario no autorizado. Redirigiendo a Login.");
+      logger.log("[Estudiante View] Usuario no autorizado. Redirigiendo a Login.");
       router.push("/");
       return;
     }
@@ -96,7 +101,7 @@ export default function EstudianteDashboard() {
         setEsSenior(data.esSenior || false);
         setAcademias(data.academias || []);
 
-        Controller.registrarActividad(userId, null, 'LOGIN');
+        Controller.registrarActividad(userId, null, "LOGIN");
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : "Error de red");
       } finally {
@@ -110,7 +115,7 @@ export default function EstudianteDashboard() {
   const handleViewTask = (tarea: Tarea) => {
     const user = Controller.getCurrentUser();
     if (user) {
-      Controller.registrarActividad(user.id, tarea.curso.id, 'TAREA_VISTA');
+      Controller.registrarActividad(user.id, tarea.curso.id, "TAREA_VISTA");
     }
   };
 
@@ -119,36 +124,7 @@ export default function EstudianteDashboard() {
       Controller.logout();
       router.push("/");
     } catch (err) {
-      console.error("Error al cerrar sesión", err);
-    }
-  };
-
-  const getUrgencyBadge = (fechaEntregaStr: string) => {
-    const ahora = new Date();
-    const entrega = new Date(fechaEntregaStr);
-    const diffMs = entrega.getTime() - ahora.getTime();
-    const diffHours = diffMs / (1000 * 60 * 60);
-
-    if (diffHours < 0) {
-      return {
-        text: "Vencido",
-        className: "bg-red-50 text-red-700 border border-red-200"
-      };
-    } else if (diffHours < 24) {
-      return {
-        text: "Urgente (< 24h)",
-        className: "bg-red-100 text-red-800 border border-red-300 animate-pulse font-bold"
-      };
-    } else if (diffHours < 72) {
-      return {
-        text: "Próxima (< 72h)",
-        className: "bg-amber-50 text-amber-800 border border-amber-300"
-      };
-    } else {
-      return {
-        text: "Vigente (> 3 días)",
-        className: "bg-emerald-50 text-emerald-800 border border-emerald-300"
-      };
+      logger.error("Error al cerrar sesión", err);
     }
   };
 
@@ -161,260 +137,376 @@ export default function EstudianteDashboard() {
     });
   };
 
-
+  const alDia = tasks.length === 0;
+  const firstName = userName.split(" ")[0];
 
   if (loading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center bg-slate-100 min-h-screen">
-        <div className="flex flex-col items-center gap-4 bg-white rounded-2xl p-10 shadow-sm border border-slate-200">
-          <Loader2 className="h-10 w-10 text-[#0F2C59] animate-spin" />
-          <p className="text-slate-600 text-sm font-semibold">Cargando portal del estudiante...</p>
-        </div>
+      <div className="flex-1 flex flex-col bg-background min-h-screen">
+        <header className="bg-brand-navy text-white sticky top-0 z-10 border-b-4 border-brand-red shadow-lg px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-white/10 border border-white/20 p-2 rounded-xl text-brand-amber">
+              <GraduationCap className="h-6 w-6" />
+            </div>
+            <span className="text-lg font-extrabold tracking-wide uppercase">Cognitor</span>
+          </div>
+        </header>
+        <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
+          <div className="bg-brand-gradient rounded-2xl p-6 h-32 animate-pulse opacity-60" />
+          <TableSkeleton rows={6} />
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-slate-100 min-h-screen text-slate-800">
-      
+    <div className="flex-1 flex flex-col bg-background min-h-screen text-text-primary">
       {/* Cabecera Principal */}
-      <header className="bg-[#0F2C59] text-white sticky top-0 z-10 border-b-4 border-[#A30000] shadow-lg px-6 py-4 flex items-center justify-between">
+      <header className="bg-brand-navy text-white sticky top-0 z-10 border-b-4 border-brand-red shadow-lg px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="bg-white/10 border border-white/20 p-2 rounded-xl text-amber-400">
+          <div className="bg-white/10 border border-white/20 p-2 rounded-xl text-brand-amber">
             <GraduationCap className="h-6 w-6" />
           </div>
           <div>
             <span className="text-lg font-extrabold tracking-wide uppercase leading-tight flex items-center gap-2">
               Cognitor
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 tracking-normal normal-case">
+              <Badge variant="warning" className="text-[10px] tracking-normal normal-case border-brand-amber/30 bg-brand-amber/20 text-amber-200">
                 Portal Alumno
-              </span>
+              </Badge>
             </span>
             <p className="text-[10px] text-slate-400">Plataforma Educativa Inteligente</p>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-4">
           <div className="hidden md:flex flex-col text-right bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg">
             <p className="text-xs text-slate-200 font-bold">{userName}</p>
-            <p className="text-[9px] text-amber-400 font-semibold uppercase">Matrícula Regular</p>
+            <p className="text-[9px] text-brand-amber font-semibold uppercase">Matrícula Regular</p>
           </div>
 
-          <button
+          <Button
+            variant="ghost"
+            size="sm"
             onClick={handleLogout}
-            className="flex items-center justify-center p-2 bg-white/10 hover:bg-red-700/25 border border-white/20 hover:border-red-500/40 text-slate-300 hover:text-red-300 rounded-xl transition-all cursor-pointer"
+            className="p-2 bg-white/10 hover:bg-red-700/25 border border-white/20 hover:border-red-500/40 text-slate-300 hover:text-red-300 rounded-xl"
             title="Cerrar Sesión"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
+            icon={<LogOut className="h-4 w-4" />}
+          />
         </div>
       </header>
 
       {/* Contenido Principal */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+      <main className="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 fade-in">
         {/* Columna Izquierda / Central (Cursos y Tareas) */}
         <div className="lg:col-span-2 space-y-6">
-          
-          {/* Tarjeta de Bienvenida */}
-          <div className="bg-[#0F2C59] rounded-2xl p-6 relative overflow-hidden shadow-lg">
+          {/* Tarjeta de Bienvenida Motivacional */}
+          <div className="bg-brand-gradient rounded-2xl p-6 relative overflow-hidden shadow-lg">
             <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full" />
             <div className="absolute right-16 -top-8 w-24 h-24 bg-white/5 rounded-full" />
-            <h2 className="text-xl md:text-2xl font-extrabold text-white">Bienvenido, {userName.split(" ")[0]}</h2>
-            <p className="text-slate-300 mt-1.5 text-xs max-w-md">
-              Tienes <span className="text-amber-300 font-bold">{tasks.length} actividades programadas</span> pendientes para esta semana.
-            </p>
-            <div className="flex items-center gap-2 mt-4 bg-white/10 border border-white/10 w-fit px-3 py-1.5 rounded-full text-xs text-emerald-300 font-bold">
-              <CheckCircle className="h-4 w-4" /> Matrícula Habilitada
+            <h2 className="text-xl md:text-2xl font-extrabold text-white">
+              Bienvenido, {firstName}
+            </h2>
+            {alDia ? (
+              <div className="mt-3 flex items-center gap-2">
+                <Sparkles className="h-5 w-5 text-emerald-300" />
+                <p className="text-emerald-200 font-bold text-sm">¡Vas al día!</p>
+              </div>
+            ) : (
+              <p className="text-slate-300 mt-1.5 text-xs max-w-md">
+                Tienes{" "}
+                <span className="text-brand-amber font-bold">
+                  {tasks.length} actividades programadas
+                </span>{" "}
+                pendientes para esta semana.
+              </p>
+            )}
+            <div
+              className={`flex items-center gap-2 mt-4 w-fit px-3 py-1.5 rounded-full text-xs font-bold border ${
+                alDia
+                  ? "bg-emerald-500/20 border-emerald-400/30 text-emerald-200"
+                  : "bg-brand-amber/20 border-brand-amber/30 text-amber-200"
+              }`}
+            >
+              <CheckCircle className="h-4 w-4" />
+              {alDia ? "Sin pendientes esta semana" : "Matrícula Habilitada"}
             </div>
           </div>
 
+          {error && (
+            <Card className="border-danger/30 bg-red-50">
+              <p className="text-sm text-danger font-medium">{error}</p>
+            </Card>
+          )}
+
           {/* Tareas Pendientes */}
-          <section className="space-y-3">
-            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <AlertTriangle className="h-5 w-5 text-[#0F2C59]" /> Actividades Académicas Pendientes ({tasks.length})
-            </h3>
+          <Card>
+            <CardHeader
+              icon={<AlertTriangle className="h-5 w-5" />}
+              title={`Actividades Académicas Pendientes (${tasks.length})`}
+            />
 
             {tasks.length === 0 ? (
-              <div className="bg-white border border-slate-200 rounded-xl p-8 text-center shadow-sm">
-                <p className="text-slate-500 text-xs font-semibold">No registras trabajos ni actividades pendientes.</p>
-              </div>
+              <EmptyState
+                icon={ClipboardList}
+                title="No registras trabajos ni actividades pendientes"
+                description="¡Buen trabajo! Mantén el ritmo con tus clases."
+              />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {tasks.map((tarea) => {
-                  const badge = getUrgencyBadge(tarea.fechaEntrega);
-                  return (
-                    <div 
-                      key={tarea.id} 
-                      onClick={() => handleViewTask(tarea)}
-                      className="bg-white border border-slate-200 rounded-2xl p-5 hover:border-slate-300 card-hover transition-all flex flex-col justify-between gap-4 shadow-sm cursor-pointer"
-                    >
-                      <div className="space-y-2">
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-[#0F2C59] border border-blue-100">
-                            {tarea.curso.nombre}
-                          </span>
-                          <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded border ${badge.className}`}>
-                            {badge.text}
-                          </span>
-                        </div>
-                        <h4 className="text-xs font-bold text-slate-800">{tarea.titulo}</h4>
-                        <p className="text-xs text-slate-500 line-clamp-2">{tarea.descripcion}</p>
+                {tasks.map((tarea) => (
+                  <div
+                    key={tarea.id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => handleViewTask(tarea)}
+                    onKeyDown={(e) => e.key === "Enter" && handleViewTask(tarea)}
+                    className="cursor-pointer"
+                  >
+                  <Card
+                    padding="sm"
+                    className="h-full flex flex-col justify-between gap-4"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <Badge variant="neutral" className="bg-brand-navy/5 text-brand-navy border-brand-navy/10 normal-case tracking-normal">
+                          {tarea.curso.nombre}
+                        </Badge>
+                        <TaskUrgencyBadge fechaEntrega={tarea.fechaEntrega} />
                       </div>
+                      <h4 className="text-xs font-bold text-text-primary">{tarea.titulo}</h4>
+                      <p className="text-xs text-text-secondary line-clamp-2">{tarea.descripcion}</p>
+                    </div>
 
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-medium">
-                        <span className="flex items-center gap-1.5 text-slate-500 font-semibold text-[10px]">
-                          <Clock className="h-3.5 w-3.5 text-slate-400" />
-                          Límite: {formatFecha(tarea.fechaEntrega)}
-                        </span>
-                        <ChevronRight className="h-4 w-4 text-slate-300" />
+                    <div className="pt-3 border-t border-border-subtle flex items-center justify-between text-xs text-text-secondary font-medium">
+                      <span className="flex items-center gap-1.5 font-semibold text-[10px]">
+                        <Clock className="h-3.5 w-3.5" />
+                        Límite: {formatFecha(tarea.fechaEntrega)}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-slate-300" />
+                    </div>
+                  </Card>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          {/* Cursos Matriculados */}
+          <Card>
+            <CardHeader
+              icon={<BookOpen className="h-5 w-5" />}
+              title="Asignaturas Matriculadas Activas"
+            />
+
+            {courses.length === 0 ? (
+              <EmptyState
+                icon={BookOpen}
+                title="No tienes asignaturas matriculadas"
+                description="Contacta a tu coordinador académico para más información."
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {courses.map((curso) => (
+                  <Card key={curso.id} padding="sm" className="flex flex-col justify-between gap-4">
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-bold text-text-primary">{curso.nombre}</h4>
+                      <p className="text-xs text-text-secondary line-clamp-2">{curso.descripcion}</p>
+                    </div>
+                    <div className="flex items-center gap-2.5 pt-3 border-t border-border-subtle text-[11px]">
+                      <div className="bg-brand-navy/5 text-brand-navy p-1.5 rounded-lg border border-brand-navy/10">
+                        <GraduationCap className="h-3.5 w-3.5" />
+                      </div>
+                      <div>
+                        <p className="text-text-secondary font-bold leading-none text-[9px] uppercase">Cátedra</p>
+                        <p className="text-text-primary font-semibold mt-0.5">{curso.docente.nombre}</p>
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* Columna Derecha (Horario y Sílabo) */}
+        <div className="space-y-6">
+          {/* Horario de Clases — Timeline vertical */}
+          <Card>
+            <CardHeader
+              icon={<Calendar className="h-5 w-5" />}
+              title="Programación Horaria Diaria"
+            />
+
+            {syllabus.length === 0 ? (
+              <EmptyState
+                icon={Calendar}
+                title="Sin programación en el sílabo actual"
+                description="Tu docente aún no ha publicado la programación semanal."
+              />
+            ) : (
+              <div className="relative pl-6 space-y-0">
+                <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-border-subtle" />
+                {syllabus.map((item, index) => {
+                  const isCurrent = index === 0;
+                  return (
+                    <div key={item.id} className="relative pb-5 last:pb-0">
+                      <div
+                        className={`absolute -left-6 top-1 w-[22px] h-[22px] rounded-full border-2 flex items-center justify-center ${
+                          isCurrent
+                            ? "bg-brand-navy border-brand-amber shadow-md shadow-brand-navy/30"
+                            : "bg-white border-border-subtle"
+                        }`}
+                      >
+                        {isCurrent && (
+                          <span className="w-2 h-2 rounded-full bg-brand-amber animate-pulse" />
+                        )}
+                      </div>
+                      <div
+                        className={`ml-2 p-3 rounded-xl border transition-all ${
+                          isCurrent
+                            ? "bg-brand-navy/5 border-brand-navy/20 shadow-sm"
+                            : "bg-slate-50 border-border-subtle"
+                        }`}
+                      >
+                        {isCurrent && (
+                          <Badge variant="warning" className="mb-1.5 normal-case tracking-normal text-[9px]">
+                            En curso
+                          </Badge>
+                        )}
+                        <p className={`text-xs font-bold ${isCurrent ? "text-brand-navy" : "text-text-primary"}`}>
+                          {item.curso.nombre}
+                        </p>
+                        <p className="text-[10px] text-text-secondary font-semibold mt-0.5">
+                          Semana {item.semana}: {item.tema}
+                        </p>
                       </div>
                     </div>
                   );
                 })}
               </div>
             )}
-          </section>
+          </Card>
 
-          {/* Cursos Matriculados */}
-          <section className="space-y-3">
-            <h3 className="text-base font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <BookOpen className="h-5 w-5 text-[#0F2C59]" /> Asignaturas Matriculadas Activas
-            </h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {courses.map((curso) => (
-                <div 
-                  key={curso.id} 
-                  className="bg-white border border-slate-200 rounded-2xl p-5 flex flex-col justify-between gap-4 card-hover shadow-sm"
-                >
-                  <div className="space-y-1">
-                    <h4 className="text-xs font-bold text-slate-850">{curso.nombre}</h4>
-                    <p className="text-xs text-slate-500 line-clamp-2">{curso.descripcion}</p>
-                  </div>
-                  <div className="flex items-center gap-2.5 pt-3 border-t border-slate-100 text-[11px]">
-                    <div className="bg-blue-50 text-[#0F2C59] p-1.5 rounded-lg border border-blue-100">
-                      <GraduationCap className="h-3.5 w-3.5" />
-                    </div>
-                    <div>
-                      <p className="text-slate-400 font-bold leading-none text-[9px] uppercase">Cátedra</p>
-                      <p className="text-slate-600 font-semibold mt-0.5">{curso.docente.nombre}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </section>
-
-        </div>
-
-        {/* Columna Derecha (Horario y Sílabo) */}
-        <div className="space-y-6">
-          
-          {/* Horario de Clases */}
-          <section className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Calendar className="h-5 w-5 text-[#0F2C59]" /> Programación Horaria Diaria
-            </h3>
-            
-            <div className="space-y-3">
-              {syllabus.length === 0 ? (
-                <p className="text-xs text-slate-500 py-2">Sin programación en el sílabo actual.</p>
-              ) : (
-                syllabus.map((item) => (
-                  <div 
-                    key={item.id}
-                    className="bg-slate-50 border border-slate-200 border-l-4 border-l-[#0F2C59] p-3 rounded-lg flex justify-between items-center"
-                  >
-                    <div>
-                      <p className="text-xs text-slate-700 font-bold">{item.curso.nombre}</p>
-                      <p className="text-[10px] text-slate-400 font-semibold mt-0.5">Semana {item.semana}: {item.tema}</p>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-
-          {/* Sílabo Actual (Timeline) */}
-          <section className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Award className="h-5 w-5 text-[#0F2C59]" /> Avance de Sílabo Semanal
-            </h3>
+          {/* Sílabo Actual — Timeline vertical */}
+          <Card>
+            <CardHeader
+              icon={<Award className="h-5 w-5" />}
+              title="Avance de Sílabo Semanal"
+            />
 
             {syllabus.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-4">No hay contenidos registrados para esta semana.</p>
+              <EmptyState
+                icon={Award}
+                title="No hay contenidos registrados"
+                description="El avance del sílabo aparecerá aquí cuando esté disponible."
+              />
             ) : (
-              <div className="relative border-l-2 border-slate-100 pl-4 ml-2 space-y-5">
-                {syllabus.map((tema, index) => (
-                  <div key={tema.id} className="relative">
-                    {/* Indicador de Timeline */}
-                    <div className="absolute -left-[22px] top-1.5 w-2 h-2 rounded-full bg-[#0F2C59] border border-white shadow shadow-blue-500/20"></div>
-                    
-                    <div className="space-y-1">
-                      <p className="text-[9px] text-[#0F2C59] font-bold uppercase tracking-wide">
-                        {tema.curso.nombre}
-                      </p>
-                      <h4 className="text-xs font-semibold text-slate-700">
-                        {tema.tema}
-                      </h4>
+              <div className="relative pl-6 space-y-0">
+                <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-border-subtle" />
+                {syllabus.map((tema, index) => {
+                  const isCurrent = index === 0;
+                  return (
+                    <div key={tema.id} className="relative pb-5 last:pb-0">
+                      <div
+                        className={`absolute -left-6 top-1.5 w-3 h-3 rounded-full border-2 ${
+                          isCurrent
+                            ? "bg-brand-amber border-brand-navy shadow shadow-brand-navy/20"
+                            : "bg-brand-navy/30 border-white"
+                        }`}
+                      />
+                      <div className={`ml-2 space-y-1 ${isCurrent ? "opacity-100" : "opacity-70"}`}>
+                        <p
+                          className={`text-[9px] font-bold uppercase tracking-wide ${
+                            isCurrent ? "text-brand-amber" : "text-brand-navy/60"
+                          }`}
+                        >
+                          {tema.curso.nombre}
+                          {isCurrent && " · Actual"}
+                        </p>
+                        <h4
+                          className={`text-xs font-semibold ${
+                            isCurrent ? "text-brand-navy" : "text-text-secondary"
+                          }`}
+                        >
+                          {tema.tema}
+                        </h4>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
-          </section>
+          </Card>
 
           {/* Anuncios Recientes */}
-          <section className="bg-white border border-slate-200 rounded-xl p-6 space-y-4 shadow-sm">
-            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2 pb-2 border-b border-slate-100">
-              <Bell className="h-5 w-5 text-[#0F2C59]" /> Anuncios Recientes
-            </h3>
+          <Card>
+            <CardHeader
+              icon={<Bell className="h-5 w-5" />}
+              title="Anuncios Recientes"
+            />
+
             {anuncios.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-4">No tienes anuncios recientes.</p>
+              <EmptyState
+                icon={Megaphone}
+                title="No tienes anuncios recientes"
+                description="Los avisos de tus docentes aparecerán aquí."
+              />
             ) : (
               <div className="space-y-3">
                 {anuncios.map((anuncio) => (
-                  <div key={anuncio.id} className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                  <div
+                    key={anuncio.id}
+                    className="bg-brand-navy/5 border border-brand-navy/10 rounded-xl p-3"
+                  >
                     <div className="flex justify-between items-start gap-2">
-                      <p className="text-[10px] font-bold text-[#0F2C59] uppercase tracking-wide">{anuncio.curso.nombre}</p>
-                      <p className="text-[9px] text-slate-500">{formatFecha(anuncio.fechaPublicacion)}</p>
+                      <p className="text-[10px] font-bold text-brand-navy uppercase tracking-wide">
+                        {anuncio.curso.nombre}
+                      </p>
+                      <p className="text-[9px] text-text-secondary shrink-0">
+                        {formatFecha(anuncio.fechaPublicacion)}
+                      </p>
                     </div>
-                    <p className="text-xs text-slate-700 font-medium mt-1.5">{anuncio.mensaje}</p>
-                    <p className="text-[9px] text-slate-400 mt-2 text-right">Por: {anuncio.docente}</p>
+                    <p className="text-xs text-text-primary font-medium mt-1.5">{anuncio.mensaje}</p>
+                    <p className="text-[9px] text-text-secondary mt-2 text-right">
+                      Por: {anuncio.docente}
+                    </p>
                   </div>
                 ))}
               </div>
             )}
-          </section>
+          </Card>
 
           {/* Módulo 8: Monetización - Pre-Universidad */}
           {esSenior && academias.length > 0 && (
-            <section className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 shadow-sm space-y-3 mt-6">
-              <h3 className="text-sm font-bold text-blue-900 flex items-center gap-2 pb-2 border-b border-blue-200/50">
-                <GraduationCap className="h-5 w-5 text-blue-600" /> Pre-Universidad
-              </h3>
-              <p className="text-xs text-blue-800">
+            <Card className="border-2 border-dashed border-brand-amber/40 bg-gradient-to-br from-amber-50/80 to-indigo-50/50 relative">
+              <span className="absolute -top-2.5 right-4 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider bg-brand-amber text-white rounded-full shadow-sm">
+                Recomendado
+              </span>
+              <CardHeader
+                icon={<GraduationCap className="h-5 w-5 text-brand-navy" />}
+                title="Pre-Universidad"
+              />
+              <p className="text-xs text-text-secondary mb-4">
                 ¡Estás a un paso de la universidad! Prepárate con nuestros convenios exclusivos:
               </p>
               <div className="grid gap-3">
-                {academias.map(acad => (
-                  <div key={acad.id} className="bg-white border border-blue-100 rounded-lg p-3 flex justify-between items-center shadow-sm">
-                    <span className="text-xs font-bold text-slate-800">{acad.nombre}</span>
-                    <button className="text-[10px] font-bold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition-colors">
+                {academias.map((acad) => (
+                  <div
+                    key={acad.id}
+                    className="bg-white border border-border-subtle rounded-xl p-3 flex justify-between items-center shadow-sm"
+                  >
+                    <span className="text-xs font-bold text-text-primary">{acad.nombre}</span>
+                    {/* SIMULADO: acción de academia sin backend real */}
+                    <Button size="sm" variant="primary">
                       Ver Información
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
-            </section>
+            </Card>
           )}
-
         </div>
-
       </main>
-
-
     </div>
   );
 }

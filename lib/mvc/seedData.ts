@@ -12,6 +12,7 @@ import type {
   ActividadAlumno,
   AcademiaIntegrada,
 } from './model';
+import { hashPassword } from '../password';
 
 /** Claves usadas en localStorage. Deben coincidir con las de model.ts */
 export const STORAGE_KEYS = {
@@ -35,7 +36,7 @@ export const STORAGE_KEYS = {
  * Versión actual del seed. Incrementar este valor fuerza un reseteo
  * automático del LocalStorage en todos los clientes al próximo acceso.
  */
-export const CURRENT_SEED_VERSION = '3';
+export const CURRENT_SEED_VERSION = '4';
 
 /** IDs fijos para mantener relaciones consistentes entre entidades */
 export const SEED_IDS = {
@@ -131,11 +132,13 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     { id: aulas.primeroB, grado: '1ro de Secundaria', seccion: 'B', colegioId },
   ];
 
+  const hash = (plain: string) => hashPassword(plain);
+
   const usuariosData: Usuario[] = [
     {
       id: usuarios.admin,
       email: SEED_CREDENTIALS.admin.email,
-      passwordHash: SEED_CREDENTIALS.admin.password,
+      passwordHash: hash(SEED_CREDENTIALS.admin.password),
       rol: 'ADMIN',
       nombre: 'Sofía Rodríguez (Admin)',
       telefono: '+51987654321',
@@ -144,7 +147,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     {
       id: usuarios.docenteMath,
       email: SEED_CREDENTIALS.docente.email,
-      passwordHash: SEED_CREDENTIALS.docente.password,
+      passwordHash: hash(SEED_CREDENTIALS.docente.password),
       rol: 'DOCENTE',
       nombre: 'Prof. Juan Pérez (Matemáticas)',
       telefono: '+51900000001',
@@ -153,7 +156,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     {
       id: usuarios.docenteScience,
       email: 'maria.gomez@colegio.edu.pe',
-      passwordHash: SEED_CREDENTIALS.docente.password,
+      passwordHash: hash(SEED_CREDENTIALS.docente.password),
       rol: 'DOCENTE',
       nombre: 'Prof. María Gómez (Ciencias)',
       telefono: '+51900000002',
@@ -162,7 +165,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     {
       id: usuarios.pedrito,
       email: SEED_CREDENTIALS.estudiante.email,
-      passwordHash: SEED_CREDENTIALS.estudiante.password,
+      passwordHash: hash(SEED_CREDENTIALS.estudiante.password),
       rol: 'ESTUDIANTE',
       nombre: 'Pedro Alcántara',
       telefono: '+51900000101',
@@ -173,7 +176,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     {
       id: usuarios.lucia,
       email: 'lucia@colegio.edu.pe',
-      passwordHash: SEED_CREDENTIALS.estudiante.password,
+      passwordHash: hash(SEED_CREDENTIALS.estudiante.password),
       rol: 'ESTUDIANTE',
       nombre: 'Lucía Fernández',
       telefono: '+51900000102',
@@ -184,7 +187,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     {
       id: usuarios.carlos,
       email: 'carlos@colegio.edu.pe',
-      passwordHash: SEED_CREDENTIALS.estudiante.password,
+      passwordHash: hash(SEED_CREDENTIALS.estudiante.password),
       rol: 'ESTUDIANTE',
       nombre: 'Carlos Mendoza',
       telefono: '+51900000103',
@@ -195,7 +198,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     {
       id: usuarios.padre1,
       email: SEED_CREDENTIALS.padre1.email,
-      passwordHash: SEED_CREDENTIALS.padre1.password,
+      passwordHash: hash(SEED_CREDENTIALS.padre1.password),
       rol: 'PADRE',
       nombre: 'Roberto Alcántara (Padre)',
       telefono: '+51900000201',
@@ -204,7 +207,7 @@ export function buildSeedData(baseDate = new Date()): SeedDatabase {
     {
       id: usuarios.padre2,
       email: SEED_CREDENTIALS.padre2.email,
-      passwordHash: SEED_CREDENTIALS.padre2.password,
+      passwordHash: hash(SEED_CREDENTIALS.padre2.password),
       rol: 'PADRE',
       nombre: 'Carmen Fernández (Madre)',
       telefono: '+51900000202',

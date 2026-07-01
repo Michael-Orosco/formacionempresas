@@ -1,4 +1,4 @@
-const CACHE_NAME = 'colegio-pwa-cache-v1';
+const CACHE_NAME = 'cognitor-pwa-cache-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',

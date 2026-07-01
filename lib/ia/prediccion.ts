@@ -1,4 +1,5 @@
 import { Model } from '../mvc/model';
+import { logger } from '../logger';
 
 export type NivelRiesgo = 'BAJO' | 'MEDIO' | 'ALTO';
 
@@ -94,7 +95,7 @@ export async function predecirNota(alumnoId: string, cursoId: string): Promise<P
     const data: PrediccionResponse = await response.json();
     return data;
   } catch (error) {
-    console.error('Error al predecir la nota vía IA:', error);
+    logger.error('Error al predecir la nota vía IA:', error);
     // Fallback razonable si falla la red o la API
     return {
       nota_estimada: riesgoLocal === 'ALTO' ? 10 : (riesgoLocal === 'MEDIO' ? 14 : 18),
